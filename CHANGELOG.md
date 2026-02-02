@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.2.0 - 2026-02-02
+#### Miscellaneous Chores
+- switch verandah-plugin-api to git dependency - (f02c177) - Neale Swinnerton
+
+- - -
+
 ## v0.1.0 - 2026-02-02
 #### Features
 - add sound notifications and separate break icons - (37eab12) - Neale Swinnerton
