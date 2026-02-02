@@ -1,0 +1,27 @@
+# Cocogitto configuration for verandah-plugin-pomodoro
+from_latest_tag = false
+ignore_merge_commits = true
+ignore_fixup_commits = true
+disable_changelog = false
+disable_bump_commit = false
+
+# Tag prefix for version tags
+tag_prefix = "v"
+
+# Pre-bump hooks run before creating the version commit
+# These update Cargo.toml, the PKGBUILD with the new version and reset pkgrel
+pre_bump_hooks = [
+  "sed -i 's/^version = \".*\"/version = \"{{version}}\"/' Cargo.toml",
+  "cargo update --workspace",
+  "sed -i 's/^pkgver=.*/pkgver={{version}}/' packaging/arch/PKGBUILD",
+  "sed -i 's/^pkgrel=.*/pkgrel=1/' packaging/arch/PKGBUILD",
+  "git add Cargo.toml Cargo.lock packaging/arch/PKGBUILD",
+]
+
+# Post-bump hooks run after the version commit and tag are created
+post_bump_hooks = [
+  "git push",
+  "git push origin v{{version}}",
+  "sudo sw1nn-makepkg-chroot -C packaging/arch",
+  "sw1nn-pkg-ctl upload packaging/arch/*-{{version}}-*.pkg.tar.zst",
+]
