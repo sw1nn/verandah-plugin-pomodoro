@@ -149,8 +149,8 @@ impl WidgetPlugin for PomodoroWidget {
     fn init(&mut self, config: PluginConfig) -> PluginResult<()> {
         self.config = config.clone();
 
-        let cfg: Config = match parse_config(&config) {
-            PluginResult::ROk(c) => c,
+        let cfg: Config = match parse_config::<Config>(&config) {
+            PluginResult::ROk(c) => c.with_defaults(),
             PluginResult::RErr(e) => return PluginResult::RErr(e),
         };
 

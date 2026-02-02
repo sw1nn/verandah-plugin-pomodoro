@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
-use serde::de::{self, MapAccess, Visitor};
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
 
 pub const DEFAULT_WORK_MINS: u64 = 25;
 pub const DEFAULT_SHORT_BREAK_MINS: u64 = 5;
@@ -9,7 +8,8 @@ pub const DEFAULT_LONG_BREAK_MINS: u64 = 15;
 pub const DEFAULT_INTERVAL_MS: u64 = 1000;
 pub const DEFAULT_PADDING: f32 = 0.05;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
 pub struct Config {
     /// Work duration in minutes
     pub work: u64,
@@ -26,95 +26,21 @@ pub struct Config {
     /// Text padding as fraction of button size (0.0 to 0.4)
     pub padding: f32,
     /// Sound files to play on phase transitions (keys: work, break)
-    /// Config format: sounds_work, sounds_break
+    #[serde(default)]
     pub sounds: HashMap<String, String>,
     /// Phase indicator text (keys: work, short_break, long_break)
-    /// Config format: phases_work, phases_short_break, phases_long_break
+    #[serde(default)]
     pub phases: HashMap<String, String>,
     /// Labels/fallback text (keys: work, short_break, long_break, paused)
-    /// Config format: labels_work, labels_short_break, labels_long_break, labels_paused
+    #[serde(default)]
     pub labels: HashMap<String, String>,
     /// Colors (keys: fg, work_bg, break_bg, paused_bg) - format: #RRGGBB or #RGB
-    /// Config format: colors_fg, colors_work_bg, colors_break_bg, colors_paused_bg
-    /// Also accepts: colours_* as alias
+    #[serde(default, alias = "colours")]
     pub colors: HashMap<String, String>,
-}
-
-impl<'de> Deserialize<'de> for Config {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_map(ConfigVisitor)
-    }
-}
-
-struct ConfigVisitor;
-
-impl<'de> Visitor<'de> for ConfigVisitor {
-    type Value = Config;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("a map of configuration values")
-    }
-
-    fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
-    where
-        M: MapAccess<'de>,
-    {
-        let mut config = Config::default();
-
-        while let Some(key) = map.next_key::<String>()? {
-            let value: String = map.next_value()?;
-
-            if let Some(suffix) = key
-                .strip_prefix("colors_")
-                .or_else(|| key.strip_prefix("colours_"))
-            {
-                config.colors.insert(suffix.to_string(), value);
-            } else if let Some(suffix) = key.strip_prefix("sounds_") {
-                config.sounds.insert(suffix.to_string(), value);
-            } else if let Some(suffix) = key.strip_prefix("phases_") {
-                config.phases.insert(suffix.to_string(), value);
-            } else if let Some(suffix) = key.strip_prefix("labels_") {
-                config.labels.insert(suffix.to_string(), value);
-            } else {
-                match key.as_str() {
-                    "work" => config.work = value.parse().map_err(de::Error::custom)?,
-                    "short_break" => {
-                        config.short_break = value.parse().map_err(de::Error::custom)?
-                    }
-                    "long_break" => config.long_break = value.parse().map_err(de::Error::custom)?,
-                    "auto_start_work" => {
-                        config.auto_start_work = value.parse().map_err(de::Error::custom)?
-                    }
-                    "auto_start_break" => {
-                        config.auto_start_break = value.parse().map_err(de::Error::custom)?
-                    }
-                    "interval" => config.interval = value.parse().map_err(de::Error::custom)?,
-                    "padding" => config.padding = value.parse().map_err(de::Error::custom)?,
-                    _ => {
-                        tracing::debug!(key, "Unknown config key, ignoring");
-                    }
-                }
-            }
-        }
-
-        Ok(config)
-    }
 }
 
 impl Default for Config {
     fn default() -> Self {
-        let mut colors = HashMap::new();
-        colors.insert("fg".to_string(), "#ffffff".to_string()); // White
-        colors.insert("work_bg".to_string(), "#e57373".to_string()); // Soft coral
-        colors.insert("break_bg".to_string(), "#81c784".to_string()); // Soft mint
-        colors.insert("paused_bg".to_string(), "#7f8c8d".to_string()); // Gray
-
-        let mut labels = HashMap::new();
-        labels.insert("paused".to_string(), "PAUSED".to_string());
-
         Config {
             work: DEFAULT_WORK_MINS,
             short_break: DEFAULT_SHORT_BREAK_MINS,
@@ -125,9 +51,38 @@ impl Default for Config {
             padding: DEFAULT_PADDING,
             sounds: HashMap::new(),
             phases: HashMap::new(),
-            labels,
-            colors,
+            labels: Self::default_labels(),
+            colors: Self::default_colors(),
         }
+    }
+}
+
+impl Config {
+    fn default_colors() -> HashMap<String, String> {
+        let mut colors = HashMap::new();
+        colors.insert("fg".to_string(), "#ffffff".to_string()); // White
+        colors.insert("work_bg".to_string(), "#e57373".to_string()); // Soft coral
+        colors.insert("break_bg".to_string(), "#81c784".to_string()); // Soft mint
+        colors.insert("paused_bg".to_string(), "#7f8c8d".to_string()); // Gray
+        colors
+    }
+
+    fn default_labels() -> HashMap<String, String> {
+        let mut labels = HashMap::new();
+        labels.insert("paused".to_string(), "PAUSED".to_string());
+        labels
+    }
+
+    /// Merge HashMap fields with defaults for any missing keys.
+    /// Call this after deserializing to ensure all expected keys are present.
+    pub fn with_defaults(mut self) -> Self {
+        for (key, value) in Self::default_colors() {
+            self.colors.entry(key).or_insert(value);
+        }
+        for (key, value) in Self::default_labels() {
+            self.labels.entry(key).or_insert(value);
+        }
+        self
     }
 }
 
@@ -263,6 +218,75 @@ mod tests {
         assert_eq!(cfg.colors.get("work_bg"), Some(&"#e57373".to_string()));
         assert_eq!(cfg.colors.get("break_bg"), Some(&"#81c784".to_string()));
         assert_eq!(cfg.colors.get("paused_bg"), Some(&"#7f8c8d".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn test_config_parse_toml() -> crate::error::Result<()> {
+        let toml_str = r##"
+work = 30
+short_break = 10
+auto_start_work = true
+
+[colors]
+fg = "#000000"
+work_bg = "#ff0000"
+
+[sounds]
+work = "bell.wav"
+"##;
+        let cfg: Config = toml::from_str::<Config>(toml_str).unwrap().with_defaults();
+        assert_eq!(cfg.work, 30);
+        assert_eq!(cfg.short_break, 10);
+        assert!(cfg.auto_start_work);
+        assert_eq!(cfg.colors.get("fg"), Some(&"#000000".to_string()));
+        assert_eq!(cfg.colors.get("work_bg"), Some(&"#ff0000".to_string()));
+        // defaults should still be present for unspecified fields
+        assert_eq!(cfg.long_break, DEFAULT_LONG_BREAK_MINS);
+        assert_eq!(cfg.sounds.get("work"), Some(&"bell.wav".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn test_config_parse_inline_tables() -> crate::error::Result<()> {
+        let toml_str = r##"
+work = 25
+colors = { fg = "#ffffff", work_bg = "#e57373" }
+"##;
+        let cfg: Config = toml::from_str::<Config>(toml_str).unwrap().with_defaults();
+        assert_eq!(cfg.work, 25);
+        assert_eq!(cfg.colors.get("fg"), Some(&"#ffffff".to_string()));
+        assert_eq!(cfg.colors.get("work_bg"), Some(&"#e57373".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn test_config_partial_colors_merged_with_defaults() -> crate::error::Result<()> {
+        let toml_str = r##"
+[colors]
+fg = "#000000"
+"##;
+        let cfg: Config = toml::from_str::<Config>(toml_str).unwrap().with_defaults();
+        // User-specified value should be preserved
+        assert_eq!(cfg.colors.get("fg"), Some(&"#000000".to_string()));
+        // Defaults should be filled in for unspecified keys
+        assert_eq!(cfg.colors.get("work_bg"), Some(&"#e57373".to_string()));
+        assert_eq!(cfg.colors.get("break_bg"), Some(&"#81c784".to_string()));
+        assert_eq!(cfg.colors.get("paused_bg"), Some(&"#7f8c8d".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn test_config_partial_labels_merged_with_defaults() -> crate::error::Result<()> {
+        let toml_str = r##"
+[labels]
+work = "WORK"
+"##;
+        let cfg: Config = toml::from_str::<Config>(toml_str).unwrap().with_defaults();
+        // User-specified value should be preserved
+        assert_eq!(cfg.labels.get("work"), Some(&"WORK".to_string()));
+        // Default should be filled in
+        assert_eq!(cfg.labels.get("paused"), Some(&"PAUSED".to_string()));
         Ok(())
     }
 }
