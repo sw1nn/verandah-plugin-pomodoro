@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.4.1 - 2026-02-02
+#### Bug Fixes
+- (**config**) use flat keys for verandah widget config compatibility - (bb78205) - Neale Swinnerton
+
+- - -
+
 ## v0.4.0 - 2026-02-02
 #### Features
 - (**render**) improve button layout and skip behavior - (f740fda) - Neale Swinnerton
