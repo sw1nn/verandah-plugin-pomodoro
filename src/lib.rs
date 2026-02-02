@@ -11,6 +11,7 @@ use std::time::Instant;
 
 use verandah_plugin_api::prelude::*;
 
+pub mod cli;
 mod config;
 mod error;
 mod render;
