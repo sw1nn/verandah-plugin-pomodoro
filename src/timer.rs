@@ -72,6 +72,11 @@ impl Timer {
         self.running
     }
 
+    /// Returns true if timer is at a phase boundary (elapsed = 0)
+    pub fn at_phase_boundary(&self) -> bool {
+        self.elapsed_secs == 0
+    }
+
     pub fn iterations(&self) -> u8 {
         self.iterations
     }
@@ -132,9 +137,9 @@ impl Timer {
     }
 
     /// Skip to the next phase without waiting
-    /// Returns the type of transition that occurred, or None if paused
+    /// Returns the type of transition that occurred, or None if paused at phase boundary
     pub fn skip(&mut self) -> Transition {
-        if !self.running {
+        if !self.running && self.at_phase_boundary() {
             return Transition::None;
         }
         self.transition_to_next_phase()
@@ -334,14 +339,31 @@ mod tests {
     }
 
     #[test]
-    fn test_skip_while_paused_does_nothing() -> crate::error::Result<()> {
+    fn test_skip_while_paused_at_boundary_does_nothing() -> crate::error::Result<()> {
         let mut timer = Timer::new(&test_config());
         assert!(!timer.is_running());
+        assert!(timer.at_phase_boundary());
         assert_eq!(timer.phase(), Phase::Work);
 
         let transition = timer.skip();
         assert_eq!(transition, Transition::None);
         assert_eq!(timer.phase(), Phase::Work);
+        Ok(())
+    }
+
+    #[test]
+    fn test_skip_while_paused_mid_interval_works() -> crate::error::Result<()> {
+        let mut timer = Timer::new(&test_config());
+        timer.start();
+        timer.tick(); // elapsed = 1
+        timer.pause();
+        assert!(!timer.is_running());
+        assert!(!timer.at_phase_boundary());
+        assert_eq!(timer.phase(), Phase::Work);
+
+        let transition = timer.skip();
+        assert_eq!(transition, Transition::WorkComplete);
+        assert_eq!(timer.phase(), Phase::ShortBreak);
         Ok(())
     }
 }

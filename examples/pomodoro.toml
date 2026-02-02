@@ -25,11 +25,11 @@ shape = [3, 5]
 # Press to toggle start/stop
 #
 # Two variants are shown below:
-#   1. With icons - shows themed icons when paused (requires icon theme support)
-#   2. Without icons - shows text fallback when paused (e.g. "work", "short brk")
+#   1. With icons - shows themed icons when paused at phase boundary
+#   2. Without icons - shows text fallback when paused at phase boundary
 
 # Variant 1: With icons
-# When paused, displays the icon for current phase (work, short_break, long_break)
+# When paused at phase boundary, displays the icon for current phase
 [[keys]]
 index = 2
 [keys.widget]
@@ -40,17 +40,15 @@ work = "1"
 short_break = "1"
 long_break = "1"
 interval = "1000"
-work_bg = "c0392b"                 # Pomegranate red
-break_bg = "27ae60"                # Nephritis green
-paused_bg = "34495e"               # Wet asphalt gray
-fg_color = "ecf0f1"                # Clouds white
-work_sound = "alarm-clock-elapsed" # Sound when work ends (searches XDG sound dirs)
-break_sound = "complete"           # Sound when break ends
+colors = { fg = "#ecf0f1", work_bg = "#e57373", break_bg = "#81c784", paused_bg = "#34495e" }
+sounds = { work = "alarm-clock-elapsed", break = "complete" }
+phases = { work = "work", short_break = "short brk", long_break = "long brk" }
+labels = { work = "Work", short_break = "Short\nBreak", long_break = "Long\nBreak", paused = "\uf04c" }
 [keys.action]
 exec = "verandah-pomodoroctl toggle"
 
 # Variant 2: Without icons
-# When paused, displays text fallback for current phase
+# When paused at phase boundary, displays text fallback for current phase
 # [[keys]]
 # index = 2
 # [keys.widget]
@@ -60,12 +58,10 @@ exec = "verandah-pomodoroctl toggle"
 # short_break = "1"
 # long_break = "1"
 # interval = "1000"
-# work_bg = "c0392b"                 # Pomegranate red
-# break_bg = "27ae60"                # Nephritis green
-# paused_bg = "34495e"               # Wet asphalt gray
-# fg_color = "ecf0f1"                # Clouds white
-# work_sound = "alarm-clock-elapsed" # Sound when work ends (searches XDG sound dirs)
-# break_sound = "complete"           # Sound when break ends
+# colors = { fg = "#ecf0f1", work_bg = "#e57373", break_bg = "#81c784", paused_bg = "#34495e" }
+# sounds = { work = "alarm-clock-elapsed", break = "complete" }
+# phases = { work = "W", short_break = "SB", long_break = "LB" }
+# labels = { work = "WORK", short_break = "BREAK", long_break = "LONG\nBREAK", paused = "||" }
 # [keys.action]
 # exec = "verandah-pomodoroctl toggle"
 

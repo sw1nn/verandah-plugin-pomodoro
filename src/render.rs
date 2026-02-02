@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use ab_glyph::{Font, FontRef, PxScale, ScaleFont};
@@ -40,13 +41,14 @@ pub fn render_button(
     padding: f32,
     paused_icon: Option<&PluginImage>,
     fallback_text: Option<&str>,
+    paused_text: &str,
+    phases: &HashMap<String, String>,
 ) -> RgbImage {
-    // If paused and we have an icon, render the icon with dots overlay
-    if !timer.is_running() {
+    // At phase boundary (elapsed=0) and not running: show icon or fallback
+    if !timer.is_running() && timer.at_phase_boundary() {
         if let Some(icon) = paused_icon {
             return render_icon_with_dots(icon, width, height, timer.iterations(), fg_color);
         }
-        // No icon found, render fallback text
         if let Some(text) = fallback_text {
             return render_paused_text(text, width, height, fg_color, paused_bg, padding);
         }
@@ -67,13 +69,17 @@ pub fn render_button(
     let bg_rgba = Rgba([bg.r, bg.g, bg.b, 255]);
     draw_filled_rect_mut(&mut rgba, Rect::at(0, 0).of_size(width, height), bg_rgba);
 
-    // Build display text
-    let time_text = timer.remaining_formatted();
+    // Build display text - show paused_text when paused mid-interval
+    let time_text = if !timer.is_running() {
+        paused_text.to_string()
+    } else {
+        timer.remaining_formatted()
+    };
 
     let phase_indicator = match timer.phase() {
-        Phase::Work => "work",
-        Phase::ShortBreak => "short brk",
-        Phase::LongBreak => "long brk",
+        Phase::Work => phases.get("work").map(|s| s.as_str()).unwrap_or("work"),
+        Phase::ShortBreak => phases.get("short_break").map(|s| s.as_str()).unwrap_or("short brk"),
+        Phase::LongBreak => phases.get("long_break").map(|s| s.as_str()).unwrap_or("long brk"),
     };
 
     // Draw phase indicator (top)
@@ -92,22 +98,20 @@ pub fn render_button(
     })
 }
 
-/// Render fallback text when paused and no icon is available
+/// Render fallback text when paused at phase boundary and no icon is available
 fn render_paused_text(
     text: &str,
     width: u32,
     height: u32,
     fg_color: &Colour,
-    paused_bg: &Colour,
+    bg_color: &Colour,
     padding: f32,
 ) -> RgbImage {
     let mut rgba = RgbaImage::new(width, height);
 
-    // Fill with paused background
-    let bg_rgba = Rgba([paused_bg.r, paused_bg.g, paused_bg.b, 255]);
+    let bg_rgba = Rgba([bg_color.r, bg_color.g, bg_color.b, 255]);
     draw_filled_rect_mut(&mut rgba, Rect::at(0, 0).of_size(width, height), bg_rgba);
 
-    // Draw centered text (supports multiline)
     if let Some(font_bytes) = get_system_monospace_font() {
         if let Ok(font) = FontRef::try_from_slice(font_bytes) {
             let lines: Vec<&str> = text.lines().collect();
@@ -136,7 +140,6 @@ fn render_paused_text(
         }
     }
 
-    // Convert to RGB
     RgbImage::from_fn(width, height, |x, y| {
         let pixel = rgba.get_pixel(x, y);
         Rgb([pixel[0], pixel[1], pixel[2]])
@@ -145,7 +148,6 @@ fn render_paused_text(
 
 /// Render an icon image, scaling to fit the button
 fn render_icon(icon: &PluginImage, width: u32, height: u32) -> RgbImage {
-    // If icon is the right size, just copy it
     if icon.width == width && icon.height == height {
         return RgbImage::from_fn(width, height, |x, y| {
             let idx = ((y * width + x) * 3) as usize;
@@ -157,7 +159,6 @@ fn render_icon(icon: &PluginImage, width: u32, height: u32) -> RgbImage {
         });
     }
 
-    // Otherwise, scale the icon to fit
     let src_img = RgbImage::from_fn(icon.width, icon.height, |x, y| {
         let idx = ((y * icon.width + x) * 3) as usize;
         if idx + 2 < icon.data.len() {
@@ -185,16 +186,13 @@ fn render_icon_with_dots(
 ) -> RgbImage {
     let rgb = render_icon(icon, width, height);
 
-    // Convert to RGBA so we can draw on it
     let mut rgba = RgbaImage::from_fn(width, height, |x, y| {
         let pixel = rgb.get_pixel(x, y);
         Rgba([pixel[0], pixel[1], pixel[2], 255])
     });
 
-    // Draw iteration dots
     draw_iteration_dots(&mut rgba, iterations, width, fg_color);
 
-    // Convert back to RGB
     RgbImage::from_fn(width, height, |x, y| {
         let pixel = rgba.get_pixel(x, y);
         Rgb([pixel[0], pixel[1], pixel[2]])
