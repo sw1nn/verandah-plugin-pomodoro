@@ -29,10 +29,26 @@ use timer::{Phase, Timer, Transition};
 const WIDGET_TYPE: &str = "pomodoro";
 
 // Default colors used when parsing fails
-const DEFAULT_FG: Colour = Colour { r: 255, g: 255, b: 255 };      // White
-const DEFAULT_WORK_BG: Colour = Colour { r: 229, g: 115, b: 115 }; // Soft coral
-const DEFAULT_BREAK_BG: Colour = Colour { r: 129, g: 199, b: 132 }; // Soft mint
-const DEFAULT_PAUSED_BG: Colour = Colour { r: 127, g: 140, b: 141 }; // Gray
+const DEFAULT_FG: Colour = Colour {
+    r: 255,
+    g: 255,
+    b: 255,
+}; // White
+const DEFAULT_WORK_BG: Colour = Colour {
+    r: 229,
+    g: 115,
+    b: 115,
+}; // Soft coral
+const DEFAULT_BREAK_BG: Colour = Colour {
+    r: 129,
+    g: 199,
+    b: 132,
+}; // Soft mint
+const DEFAULT_PAUSED_BG: Colour = Colour {
+    r: 127,
+    g: 140,
+    b: 141,
+}; // Gray
 
 fn parse_colors(colors: &HashMap<String, String>) -> HashMap<String, Colour> {
     let mut parsed = HashMap::new();
@@ -40,13 +56,21 @@ fn parse_colors(colors: &HashMap<String, String>) -> HashMap<String, Colour> {
         if let Some(colour) = Colour::parse(value) {
             parsed.insert(key.clone(), colour);
         } else {
-            tracing::warn!(key, value, "Invalid color format, expected '#RRGGBB' or '#RGB'");
+            tracing::warn!(
+                key,
+                value,
+                "Invalid color format, expected '#RRGGBB' or '#RGB'"
+            );
         }
     }
     parsed
 }
 
-fn get_color<'a>(colors: &'a HashMap<String, Colour>, key: &str, default: &'a Colour) -> &'a Colour {
+fn get_color<'a>(
+    colors: &'a HashMap<String, Colour>,
+    key: &str,
+    default: &'a Colour,
+) -> &'a Colour {
     colors.get(key).unwrap_or(default)
 }
 
@@ -221,15 +245,15 @@ impl WidgetPlugin for PomodoroWidget {
                     Phase::ShortBreak => "short_break",
                     Phase::LongBreak => "long_break",
                 };
-                let fallback = self
-                    .labels
-                    .get(icon_key)
-                    .map(|s| s.as_str())
-                    .unwrap_or(match phase {
-                        Phase::Work => "Work",
-                        Phase::ShortBreak => "Short\nBreak",
-                        Phase::LongBreak => "Long\nBreak",
-                    });
+                let fallback =
+                    self.labels
+                        .get(icon_key)
+                        .map(|s| s.as_str())
+                        .unwrap_or(match phase {
+                            Phase::Work => "Work",
+                            Phase::ShortBreak => "Short\nBreak",
+                            Phase::LongBreak => "Long\nBreak",
+                        });
                 (images.get(&RString::from(icon_key)), Some(fallback))
             } else {
                 (None, None)
@@ -246,7 +270,10 @@ impl WidgetPlugin for PomodoroWidget {
             self.padding,
             icon,
             fallback_text,
-            self.labels.get("paused").map(|s| s.as_str()).unwrap_or("PAUSED"),
+            self.labels
+                .get("paused")
+                .map(|s| s.as_str())
+                .unwrap_or("PAUSED"),
             &self.phases,
         );
 

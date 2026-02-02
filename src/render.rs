@@ -78,8 +78,14 @@ pub fn render_button(
 
     let phase_indicator = match timer.phase() {
         Phase::Work => phases.get("work").map(|s| s.as_str()).unwrap_or("work"),
-        Phase::ShortBreak => phases.get("short_break").map(|s| s.as_str()).unwrap_or("short brk"),
-        Phase::LongBreak => phases.get("long_break").map(|s| s.as_str()).unwrap_or("long brk"),
+        Phase::ShortBreak => phases
+            .get("short_break")
+            .map(|s| s.as_str())
+            .unwrap_or("short brk"),
+        Phase::LongBreak => phases
+            .get("long_break")
+            .map(|s| s.as_str())
+            .unwrap_or("long brk"),
     };
 
     // Draw phase indicator (top)
@@ -112,31 +118,31 @@ fn render_paused_text(
     let bg_rgba = Rgba([bg_color.r, bg_color.g, bg_color.b, 255]);
     draw_filled_rect_mut(&mut rgba, Rect::at(0, 0).of_size(width, height), bg_rgba);
 
-    if let Some(font_bytes) = get_system_monospace_font() {
-        if let Ok(font) = FontRef::try_from_slice(font_bytes) {
-            let lines: Vec<&str> = text.lines().collect();
-            let content_fraction = 1.0 - (2.0 * padding);
-            let target_width = width as f32 * content_fraction;
-            let target_height = height as f32 * content_fraction;
-            let scale_value = find_optimal_scale(&font, &lines, target_width, target_height);
-            let scale = PxScale::from(scale_value);
+    if let Some(font_bytes) = get_system_monospace_font()
+        && let Ok(font) = FontRef::try_from_slice(font_bytes)
+    {
+        let lines: Vec<&str> = text.lines().collect();
+        let content_fraction = 1.0 - (2.0 * padding);
+        let target_width = width as f32 * content_fraction;
+        let target_height = height as f32 * content_fraction;
+        let scale_value = find_optimal_scale(&font, &lines, target_width, target_height);
+        let scale = PxScale::from(scale_value);
 
-            let scaled_font = font.as_scaled(scale);
-            let line_height = scaled_font.height();
-            let total_height = line_height * lines.len() as f32;
-            let start_y = (height as f32 - total_height) / 2.0;
+        let scaled_font = font.as_scaled(scale);
+        let line_height = scaled_font.height();
+        let total_height = line_height * lines.len() as f32;
+        let start_y = (height as f32 - total_height) / 2.0;
 
-            let color = Rgba([fg_color.r, fg_color.g, fg_color.b, 255]);
+        let color = Rgba([fg_color.r, fg_color.g, fg_color.b, 255]);
 
-            for (i, line) in lines.iter().enumerate() {
-                let text_width: f32 = line
-                    .chars()
-                    .map(|c| scaled_font.h_advance(font.glyph_id(c)))
-                    .sum();
-                let x = ((width as f32 - text_width) / 2.0).max(0.0) as i32;
-                let y = (start_y + line_height * i as f32) as i32;
-                draw_text_mut(&mut rgba, color, x, y, scale, &font, line);
-            }
+        for (i, line) in lines.iter().enumerate() {
+            let text_width: f32 = line
+                .chars()
+                .map(|c| scaled_font.h_advance(font.glyph_id(c)))
+                .sum();
+            let x = ((width as f32 - text_width) / 2.0).max(0.0) as i32;
+            let y = (start_y + line_height * i as f32) as i32;
+            draw_text_mut(&mut rgba, color, x, y, scale, &font, line);
         }
     }
 

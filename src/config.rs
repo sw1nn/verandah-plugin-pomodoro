@@ -39,9 +39,9 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         let mut colors = HashMap::new();
-        colors.insert("fg".to_string(), "#ffffff".to_string());        // White
-        colors.insert("work_bg".to_string(), "#e57373".to_string());   // Soft coral
-        colors.insert("break_bg".to_string(), "#81c784".to_string());  // Soft mint
+        colors.insert("fg".to_string(), "#ffffff".to_string()); // White
+        colors.insert("work_bg".to_string(), "#e57373".to_string()); // Soft coral
+        colors.insert("break_bg".to_string(), "#81c784".to_string()); // Soft mint
         colors.insert("paused_bg".to_string(), "#7f8c8d".to_string()); // Gray
 
         let mut labels = HashMap::new();
