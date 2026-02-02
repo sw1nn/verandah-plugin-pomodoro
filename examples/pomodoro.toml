@@ -40,10 +40,19 @@ work = "1"
 short_break = "1"
 long_break = "1"
 interval = "1000"
-colors = { fg = "#ecf0f1", work_bg = "#e57373", break_bg = "#81c784", paused_bg = "#34495e" }
-sounds = { work = "alarm-clock-elapsed", break = "complete" }
-phases = { work = "work", short_break = "short brk", long_break = "long brk" }
-labels = { work = "Work", short_break = "Short\nBreak", long_break = "Long\nBreak", paused = "\uf04c" }
+colors_fg = "#ecf0f1"
+colors_work_bg = "#e57373"
+colors_break_bg = "#81c784"
+colors_paused_bg = "#34495e"
+sounds_work = "alarm-clock-elapsed"
+sounds_break = "complete"
+phases_work = "work"
+phases_short_break = "short brk"
+phases_long_break = "long brk"
+labels_work = "Work"
+labels_short_break = "Short\nBreak"
+labels_long_break = "Long\nBreak"
+labels_paused = "\uf04c"
 [keys.action]
 exec = "verandah-pomodoroctl toggle"
 
@@ -58,10 +67,19 @@ exec = "verandah-pomodoroctl toggle"
 # short_break = "1"
 # long_break = "1"
 # interval = "1000"
-# colors = { fg = "#ecf0f1", work_bg = "#e57373", break_bg = "#81c784", paused_bg = "#34495e" }
-# sounds = { work = "alarm-clock-elapsed", break = "complete" }
-# phases = { work = "W", short_break = "SB", long_break = "LB" }
-# labels = { work = "WORK", short_break = "BREAK", long_break = "LONG\nBREAK", paused = "||" }
+# colors_fg = "#ecf0f1"
+# colors_work_bg = "#e57373"
+# colors_break_bg = "#81c784"
+# colors_paused_bg = "#34495e"
+# sounds_work = "alarm-clock-elapsed"
+# sounds_break = "complete"
+# phases_work = "W"
+# phases_short_break = "SB"
+# phases_long_break = "LB"
+# labels_work = "WORK"
+# labels_short_break = "BREAK"
+# labels_long_break = "LONG\nBREAK"
+# labels_paused = "||"
 # [keys.action]
 # exec = "verandah-pomodoroctl toggle"
 

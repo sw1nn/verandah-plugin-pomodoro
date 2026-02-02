@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use serde::Deserialize;
+use serde::de::{self, MapAccess, Visitor};
+use serde::{Deserialize, Deserializer};
 
 pub const DEFAULT_WORK_MINS: u64 = 25;
 pub const DEFAULT_SHORT_BREAK_MINS: u64 = 5;
@@ -8,8 +9,7 @@ pub const DEFAULT_LONG_BREAK_MINS: u64 = 15;
 pub const DEFAULT_INTERVAL_MS: u64 = 1000;
 pub const DEFAULT_PADDING: f32 = 0.05;
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
+#[derive(Debug, Clone)]
 pub struct Config {
     /// Work duration in minutes
     pub work: u64,
@@ -26,14 +26,82 @@ pub struct Config {
     /// Text padding as fraction of button size (0.0 to 0.4)
     pub padding: f32,
     /// Sound files to play on phase transitions (keys: work, break)
+    /// Config format: sounds_work, sounds_break
     pub sounds: HashMap<String, String>,
     /// Phase indicator text (keys: work, short_break, long_break)
+    /// Config format: phases_work, phases_short_break, phases_long_break
     pub phases: HashMap<String, String>,
     /// Labels/fallback text (keys: work, short_break, long_break, paused)
+    /// Config format: labels_work, labels_short_break, labels_long_break, labels_paused
     pub labels: HashMap<String, String>,
     /// Colors (keys: fg, work_bg, break_bg, paused_bg) - format: #RRGGBB or #RGB
-    #[serde(alias = "colours")]
+    /// Config format: colors_fg, colors_work_bg, colors_break_bg, colors_paused_bg
+    /// Also accepts: colours_* as alias
     pub colors: HashMap<String, String>,
+}
+
+impl<'de> Deserialize<'de> for Config {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_map(ConfigVisitor)
+    }
+}
+
+struct ConfigVisitor;
+
+impl<'de> Visitor<'de> for ConfigVisitor {
+    type Value = Config;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a map of configuration values")
+    }
+
+    fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+    where
+        M: MapAccess<'de>,
+    {
+        let mut config = Config::default();
+
+        while let Some(key) = map.next_key::<String>()? {
+            let value: String = map.next_value()?;
+
+            if let Some(suffix) = key
+                .strip_prefix("colors_")
+                .or_else(|| key.strip_prefix("colours_"))
+            {
+                config.colors.insert(suffix.to_string(), value);
+            } else if let Some(suffix) = key.strip_prefix("sounds_") {
+                config.sounds.insert(suffix.to_string(), value);
+            } else if let Some(suffix) = key.strip_prefix("phases_") {
+                config.phases.insert(suffix.to_string(), value);
+            } else if let Some(suffix) = key.strip_prefix("labels_") {
+                config.labels.insert(suffix.to_string(), value);
+            } else {
+                match key.as_str() {
+                    "work" => config.work = value.parse().map_err(de::Error::custom)?,
+                    "short_break" => {
+                        config.short_break = value.parse().map_err(de::Error::custom)?
+                    }
+                    "long_break" => config.long_break = value.parse().map_err(de::Error::custom)?,
+                    "auto_start_work" => {
+                        config.auto_start_work = value.parse().map_err(de::Error::custom)?
+                    }
+                    "auto_start_break" => {
+                        config.auto_start_break = value.parse().map_err(de::Error::custom)?
+                    }
+                    "interval" => config.interval = value.parse().map_err(de::Error::custom)?,
+                    "padding" => config.padding = value.parse().map_err(de::Error::custom)?,
+                    _ => {
+                        tracing::debug!(key, "Unknown config key, ignoring");
+                    }
+                }
+            }
+        }
+
+        Ok(config)
+    }
 }
 
 impl Default for Config {
