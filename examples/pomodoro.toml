@@ -1,0 +1,77 @@
+# Example deck configuration for the pomodoro timer plugin
+#
+# Usage:
+#   1. Build the plugin: cargo build
+#   2. Set plugin path: export VERANDAH_PLUGIN_PATH=/home/swn/.cache/cargo/sw1nn/cargo_target/debug
+#   3. Start daemon: streamdeckd --config examples/pomodoro.toml --watch-config -vv
+#
+# Button layout (3x5 Stream Deck):
+#
+#   ┌─────┬─────┬─────┬─────┬─────┐
+#   │  0  │  1  │TIMER│  3  │clock│
+#   ├─────┼─────┼─────┼─────┼─────┤
+#   │reset│  6  │skip │  8  │  9  │
+#   ├─────┼─────┼─────┼─────┼─────┤
+#   │ 10  │ 11  │ 12  │ 13  │ 14  │
+#   └─────┴─────┴─────┴─────┴─────┘
+#
+# Press the timer button (2) to toggle start/stop
+# Press reset (5) to reset timer
+# Press skip (7) to skip to next phase
+
+shape = [3, 5]
+
+# Main pomodoro timer - center of top row
+# Press to toggle start/stop
+[[keys]]
+index = 2
+[keys.widget]
+id = "pomodoro"
+[keys.widget.config]
+work = "25"
+short_break = "5"
+long_break = "15"
+interval = "1000"
+work_bg = "c0392b"    # Pomegranate red
+break_bg = "27ae60"   # Nephritis green
+paused_bg = "34495e"  # Wet asphalt gray
+fg_color = "ecf0f1"   # Clouds white
+[keys.action]
+exec = "verandah-pomodoroctl toggle"
+
+# Reset button
+[[keys]]
+index = 5
+[keys.widget]
+id = "clock"
+[keys.widget.config]
+format = "Reset"
+interval = "60000"
+fg_color = "ffffff"
+bg_color = "e74c3c"   # Alizarin red
+[keys.action]
+exec = "verandah-pomodoroctl reset"
+
+# Skip button
+[[keys]]
+index = 7
+[keys.widget]
+id = "clock"
+[keys.widget.config]
+format = "Skip"
+interval = "60000"
+fg_color = "ffffff"
+bg_color = "3498db"   # Peter river blue
+[keys.action]
+exec = "verandah-pomodoroctl skip"
+
+# Clock for reference
+[[keys]]
+index = 4
+[keys.widget]
+id = "clock"
+[keys.widget.config]
+format = "%H:%M"
+interval = "1000"
+fg_color = "ffffff"
+bg_color = "2c3e50"   # Midnight blue

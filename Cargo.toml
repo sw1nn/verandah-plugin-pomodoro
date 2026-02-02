@@ -1,0 +1,28 @@
+[package]
+name = "verandah-plugin-pomodoro"
+version = "0.1.0"
+edition = "2024"
+description = "Pomodoro timer widget plugin for verandah"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "verandah-pomodoroctl"
+path = "src/bin/pomodoroctl.rs"
+
+[dependencies]
+verandah-plugin-api = { path = "../verandah/main/verandah-plugin-api" }
+abi_stable = "0.11"
+serde = { version = "1", features = ["derive"] }
+tracing = "0.1"
+derive_more = { version = "2", features = ["from", "display"] }
+xdg = "2"
+clap = { version = "4", features = ["derive"] }
+
+# Rendering
+image = "0.25"
+imageproc = "0.25"
+ab_glyph = "0.2"
+fontconfig = "0.6"
