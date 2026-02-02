@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.6.0 - 2026-02-02
+#### Refactoring
+- (**colors**) use standardized colors module from verandah clock plugin - (8de3163) - Neale Swinnerton
+
+- - -
+
 ## v0.5.0 - 2026-02-02
 #### Refactoring
 - (**config**) use structured TOML parsing with verandah-plugin-api v0.1.0 - (c98c94b) - Neale Swinnerton
