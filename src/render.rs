@@ -41,10 +41,10 @@ pub fn render_button(
     paused_icon: Option<&PluginImage>,
     fallback_text: Option<&str>,
 ) -> RgbImage {
-    // If paused and we have an icon, just render the icon
+    // If paused and we have an icon, render the icon with dots overlay
     if !timer.is_running() {
         if let Some(icon) = paused_icon {
-            return render_icon(icon, width, height);
+            return render_icon_with_dots(icon, width, height, timer.iterations(), fg_color);
         }
         // No icon found, render fallback text
         if let Some(text) = fallback_text {
@@ -69,20 +69,21 @@ pub fn render_button(
 
     // Build display text
     let time_text = timer.remaining_formatted();
+
     let phase_indicator = match timer.phase() {
-        Phase::Work => "W",
-        Phase::ShortBreak => "B",
-        Phase::LongBreak => "LB",
+        Phase::Work => "work",
+        Phase::ShortBreak => "short brk",
+        Phase::LongBreak => "long brk",
     };
 
-    // Draw iteration progress dots (top of button)
-    draw_iteration_dots(&mut rgba, timer.iterations(), width, fg_color);
+    // Draw phase indicator (top)
+    draw_phase_indicator(&mut rgba, phase_indicator, fg_color, padding);
 
     // Draw main time (center)
     draw_centered_text(&mut rgba, &time_text, fg_color, padding, 0.0);
 
-    // Draw phase indicator (bottom)
-    draw_phase_indicator(&mut rgba, phase_indicator, fg_color, padding);
+    // Draw iteration progress dots (bottom)
+    draw_iteration_dots(&mut rgba, timer.iterations(), width, fg_color);
 
     // Convert to RGB
     RgbImage::from_fn(width, height, |x, y| {
@@ -174,7 +175,33 @@ fn render_icon(icon: &PluginImage, width: u32, height: u32) -> RgbImage {
     )
 }
 
-/// Draw iteration progress dots at the top
+/// Render an icon image with iteration dots overlay
+fn render_icon_with_dots(
+    icon: &PluginImage,
+    width: u32,
+    height: u32,
+    iterations: u8,
+    fg_color: &Colour,
+) -> RgbImage {
+    let rgb = render_icon(icon, width, height);
+
+    // Convert to RGBA so we can draw on it
+    let mut rgba = RgbaImage::from_fn(width, height, |x, y| {
+        let pixel = rgb.get_pixel(x, y);
+        Rgba([pixel[0], pixel[1], pixel[2], 255])
+    });
+
+    // Draw iteration dots
+    draw_iteration_dots(&mut rgba, iterations, width, fg_color);
+
+    // Convert back to RGB
+    RgbImage::from_fn(width, height, |x, y| {
+        let pixel = rgba.get_pixel(x, y);
+        Rgb([pixel[0], pixel[1], pixel[2]])
+    })
+}
+
+/// Draw iteration progress dots at the bottom
 fn draw_iteration_dots(rgba: &mut RgbaImage, iterations: u8, width: u32, fg_color: &Colour) {
     let Some(font_bytes) = get_system_monospace_font() else {
         return;
@@ -188,8 +215,9 @@ fn draw_iteration_dots(rgba: &mut RgbaImage, iterations: u8, width: u32, fg_colo
         .map(|i| if i < iterations { '●' } else { '○' })
         .collect();
 
-    let scale = PxScale::from(12.0);
+    let scale = PxScale::from(18.0);
     let scaled_font = font.as_scaled(scale);
+    let line_height = scaled_font.height();
 
     // Calculate width for centering
     let text_width: f32 = dots
@@ -198,7 +226,7 @@ fn draw_iteration_dots(rgba: &mut RgbaImage, iterations: u8, width: u32, fg_colo
         .sum();
 
     let x = ((width as f32 - text_width) / 2.0).max(0.0) as i32;
-    let y = 4; // Small margin from top
+    let y = (rgba.height() as f32 - line_height - 4.0) as i32; // Small margin from bottom
 
     let color = Rgba([fg_color.r, fg_color.g, fg_color.b, 255]);
     draw_text_mut(rgba, color, x, y, scale, &font, &dots);
@@ -222,7 +250,7 @@ fn draw_centered_text(
     let width = rgba.width();
     let height = rgba.height();
 
-    // Reserve space for dots (top) and phase indicator (bottom)
+    // Reserve space for phase indicator (top) and dots (bottom)
     let reserved_top = 18.0;
     let reserved_bottom = 18.0;
     let available_height = height as f32 - reserved_top - reserved_bottom;
@@ -251,7 +279,7 @@ fn draw_centered_text(
     draw_text_mut(rgba, color, x, y, scale, &font, text);
 }
 
-/// Draw phase indicator at the bottom
+/// Draw phase indicator at the top
 fn draw_phase_indicator(rgba: &mut RgbaImage, text: &str, fg_color: &Colour, _padding: f32) {
     let Some(font_bytes) = get_system_monospace_font() else {
         return;
@@ -261,11 +289,9 @@ fn draw_phase_indicator(rgba: &mut RgbaImage, text: &str, fg_color: &Colour, _pa
     };
 
     let width = rgba.width();
-    let height = rgba.height();
 
     let scale = PxScale::from(14.0);
     let scaled_font = font.as_scaled(scale);
-    let line_height = scaled_font.height();
 
     let text_width: f32 = text
         .chars()
@@ -273,7 +299,7 @@ fn draw_phase_indicator(rgba: &mut RgbaImage, text: &str, fg_color: &Colour, _pa
         .sum();
 
     let x = ((width as f32 - text_width) / 2.0).max(0.0) as i32;
-    let y = (height as f32 - line_height - 4.0) as i32; // 4px margin from bottom
+    let y = 4; // 4px margin from top
 
     let color = Rgba([fg_color.r, fg_color.g, fg_color.b, 255]);
     draw_text_mut(rgba, color, x, y, scale, &font, text);

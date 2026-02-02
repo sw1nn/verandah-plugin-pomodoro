@@ -132,8 +132,11 @@ impl Timer {
     }
 
     /// Skip to the next phase without waiting
-    /// Returns the type of transition that occurred
+    /// Returns the type of transition that occurred, or None if paused
     pub fn skip(&mut self) -> Transition {
+        if !self.running {
+            return Transition::None;
+        }
         self.transition_to_next_phase()
     }
 
@@ -317,13 +320,27 @@ mod tests {
     #[test]
     fn test_skip() -> crate::error::Result<()> {
         let mut timer = Timer::new(&test_config());
+        timer.start();
         assert_eq!(timer.phase(), Phase::Work);
 
         timer.skip();
         assert_eq!(timer.phase(), Phase::ShortBreak);
         assert_eq!(timer.iterations(), 1);
 
+        timer.start();
         timer.skip();
+        assert_eq!(timer.phase(), Phase::Work);
+        Ok(())
+    }
+
+    #[test]
+    fn test_skip_while_paused_does_nothing() -> crate::error::Result<()> {
+        let mut timer = Timer::new(&test_config());
+        assert!(!timer.is_running());
+        assert_eq!(timer.phase(), Phase::Work);
+
+        let transition = timer.skip();
+        assert_eq!(transition, Transition::None);
         assert_eq!(timer.phase(), Phase::Work);
         Ok(())
     }
