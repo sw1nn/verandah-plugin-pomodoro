@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.3.0 - 2026-02-02
+
+- - -
+
 ## v0.2.0 - 2026-02-02
 #### Miscellaneous Chores
 - switch verandah-plugin-api to git dependency - (f02c177) - Neale Swinnerton
