@@ -21,33 +21,20 @@
 
 shape = [3, 5]
 
-# # Main pomodoro timer - center of top row
-# # Press to toggle start/stop
-# # When paused, shows the icon for current phase (work, short_break, long_break)
-# # If icon not found, shows text fallback (e.g. "Work", "Short Break", "Long Break")
-# [[keys]]
-# index = 2
-# [keys.widget]
-# id = "pomodoro"
-# icons = { work = "pomodoro", short_break = "pomodoro-coffee", long_break = "pomodoro-beach-umbrella" }
-# [keys.widget.config]
-# work = "1"
-# short_break = "1"
-# long_break = "1"
-# interval = "1000"
-# work_bg = "c0392b"    # Pomegranate red
-# break_bg = "27ae60"   # Nephritis green
-# paused_bg = "34495e"  # Wet asphalt gray
-# fg_color = "ecf0f1"   # Clouds white
-# work_sound = "alarm-clock-elapsed"   # Sound when work ends (searches XDG sound dirs)
-# break_sound = "complete"             # Sound when break ends
-# [keys.action]
-# exec = "verandah-pomodoroctl toggle"
+# Main pomodoro timer - center of top row
+# Press to toggle start/stop
 #
+# Two variants are shown below:
+#   1. With icons - shows themed icons when paused (requires icon theme support)
+#   2. Without icons - shows text fallback when paused (e.g. "work", "short brk")
+
+# Variant 1: With icons
+# When paused, displays the icon for current phase (work, short_break, long_break)
 [[keys]]
 index = 2
 [keys.widget]
 id = "pomodoro"
+icons = { work = "pomodoro", short_break = "pomodoro-coffee", long_break = "pomodoro-beach-umbrella" }
 [keys.widget.config]
 work = "1"
 short_break = "1"
@@ -61,6 +48,26 @@ work_sound = "alarm-clock-elapsed" # Sound when work ends (searches XDG sound di
 break_sound = "complete"           # Sound when break ends
 [keys.action]
 exec = "verandah-pomodoroctl toggle"
+
+# Variant 2: Without icons
+# When paused, displays text fallback for current phase
+# [[keys]]
+# index = 2
+# [keys.widget]
+# id = "pomodoro"
+# [keys.widget.config]
+# work = "1"
+# short_break = "1"
+# long_break = "1"
+# interval = "1000"
+# work_bg = "c0392b"                 # Pomegranate red
+# break_bg = "27ae60"                # Nephritis green
+# paused_bg = "34495e"               # Wet asphalt gray
+# fg_color = "ecf0f1"                # Clouds white
+# work_sound = "alarm-clock-elapsed" # Sound when work ends (searches XDG sound dirs)
+# break_sound = "complete"           # Sound when break ends
+# [keys.action]
+# exec = "verandah-pomodoroctl toggle"
 
 # Reset button
 [[keys]]
