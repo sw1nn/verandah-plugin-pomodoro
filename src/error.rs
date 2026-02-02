@@ -7,7 +7,10 @@ pub enum Error {
     #[from]
     Io(std::io::Error),
 
-    InvalidConfig { field: &'static str, message: String },
+    InvalidConfig {
+        field: &'static str,
+        message: String,
+    },
 }
 
 impl std::fmt::Display for Error {
