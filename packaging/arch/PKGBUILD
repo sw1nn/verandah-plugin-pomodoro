@@ -8,7 +8,7 @@ arch=('x86_64')
 url=https://github.com/sw1nn/verandah-plugin-pomodoro
 license=('MIT')
 depends=('alsa-lib')
-makedepends=('rust' 'clang' 'pkg-config')
+makedepends=('rust' 'clang' 'pkg-config' 'fontconfig')
 source=("${pkgname}::git+ssh://git.sw1nn.net/sw1nn/verandah-plugin-pomodoro?tag=v${pkgver}")
 sha256sums=('SKIP')
 
