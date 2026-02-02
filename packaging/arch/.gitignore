@@ -1,0 +1,6 @@
+src/
+pkg/
+verandah-plugin-pomodoro/
+*.tar.zst
+*.tar.zst.sig
+*.log

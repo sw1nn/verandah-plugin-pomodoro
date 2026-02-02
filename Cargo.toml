@@ -13,7 +13,7 @@ name = "verandah-pomodoroctl"
 path = "src/bin/pomodoroctl.rs"
 
 [dependencies]
-verandah-plugin-api = { path = "../verandah/main/verandah-plugin-api" }
+verandah-plugin-api = { git = "ssh://gitea@git.sw1nn.net/sw1nn/verandah-plugin-api.git" }
 abi_stable = "0.11"
 serde = { version = "1", features = ["derive"] }
 tracing = "0.1"
@@ -28,7 +28,11 @@ ab_glyph = "0.2"
 fontconfig = "0.6"
 
 # Audio
-rodio = { version = "0.19", default-features = false, features = ["mp3", "wav", "vorbis"] }
+rodio = { version = "0.19", default-features = false, features = [
+  "mp3",
+  "wav",
+  "vorbis",
+] }
 
 [build-dependencies]
 clap = { version = "4", features = ["derive"] }
