@@ -7,7 +7,6 @@ use imageproc::drawing::{draw_filled_rect_mut, draw_text_mut};
 use imageproc::rect::Rect;
 use verandah_plugin_api::prelude::PluginImage;
 
-use crate::config::Colour;
 use crate::timer::{Phase, Timer};
 
 static SYSTEM_FONT: OnceLock<Option<Vec<u8>>> = OnceLock::new();
@@ -30,14 +29,15 @@ fn load_system_monospace_font() -> Option<Vec<u8>> {
 }
 
 /// Render the pomodoro button image
+#[allow(clippy::too_many_arguments)]
 pub fn render_button(
     timer: &Timer,
     width: u32,
     height: u32,
-    fg_color: &Colour,
-    work_bg: &Colour,
-    break_bg: &Colour,
-    paused_bg: &Colour,
+    fg_color: Rgba<u8>,
+    work_bg: Rgba<u8>,
+    break_bg: Rgba<u8>,
+    paused_bg: Rgba<u8>,
     padding: f32,
     paused_icon: Option<&PluginImage>,
     fallback_text: Option<&str>,
@@ -66,8 +66,7 @@ pub fn render_button(
     };
 
     // Fill background
-    let bg_rgba = Rgba([bg.r, bg.g, bg.b, 255]);
-    draw_filled_rect_mut(&mut rgba, Rect::at(0, 0).of_size(width, height), bg_rgba);
+    draw_filled_rect_mut(&mut rgba, Rect::at(0, 0).of_size(width, height), bg);
 
     // Build display text - show paused_text when paused mid-interval
     let time_text = if !timer.is_running() {
@@ -109,14 +108,13 @@ fn render_paused_text(
     text: &str,
     width: u32,
     height: u32,
-    fg_color: &Colour,
-    bg_color: &Colour,
+    fg_color: Rgba<u8>,
+    bg_color: Rgba<u8>,
     padding: f32,
 ) -> RgbImage {
     let mut rgba = RgbaImage::new(width, height);
 
-    let bg_rgba = Rgba([bg_color.r, bg_color.g, bg_color.b, 255]);
-    draw_filled_rect_mut(&mut rgba, Rect::at(0, 0).of_size(width, height), bg_rgba);
+    draw_filled_rect_mut(&mut rgba, Rect::at(0, 0).of_size(width, height), bg_color);
 
     if let Some(font_bytes) = get_system_monospace_font()
         && let Ok(font) = FontRef::try_from_slice(font_bytes)
@@ -133,8 +131,6 @@ fn render_paused_text(
         let total_height = line_height * lines.len() as f32;
         let start_y = (height as f32 - total_height) / 2.0;
 
-        let color = Rgba([fg_color.r, fg_color.g, fg_color.b, 255]);
-
         for (i, line) in lines.iter().enumerate() {
             let text_width: f32 = line
                 .chars()
@@ -142,7 +138,7 @@ fn render_paused_text(
                 .sum();
             let x = ((width as f32 - text_width) / 2.0).max(0.0) as i32;
             let y = (start_y + line_height * i as f32) as i32;
-            draw_text_mut(&mut rgba, color, x, y, scale, &font, line);
+            draw_text_mut(&mut rgba, fg_color, x, y, scale, &font, line);
         }
     }
 
@@ -188,7 +184,7 @@ fn render_icon_with_dots(
     width: u32,
     height: u32,
     iterations: u8,
-    fg_color: &Colour,
+    fg_color: Rgba<u8>,
 ) -> RgbImage {
     let rgb = render_icon(icon, width, height);
 
@@ -206,7 +202,7 @@ fn render_icon_with_dots(
 }
 
 /// Draw iteration progress dots at the bottom
-fn draw_iteration_dots(rgba: &mut RgbaImage, iterations: u8, width: u32, fg_color: &Colour) {
+fn draw_iteration_dots(rgba: &mut RgbaImage, iterations: u8, width: u32, fg_color: Rgba<u8>) {
     let Some(font_bytes) = get_system_monospace_font() else {
         return;
     };
@@ -232,15 +228,14 @@ fn draw_iteration_dots(rgba: &mut RgbaImage, iterations: u8, width: u32, fg_colo
     let x = ((width as f32 - text_width) / 2.0).max(0.0) as i32;
     let y = (rgba.height() as f32 - line_height - 4.0) as i32; // Small margin from bottom
 
-    let color = Rgba([fg_color.r, fg_color.g, fg_color.b, 255]);
-    draw_text_mut(rgba, color, x, y, scale, &font, &dots);
+    draw_text_mut(rgba, fg_color, x, y, scale, &font, &dots);
 }
 
 /// Draw centered time text
 fn draw_centered_text(
     rgba: &mut RgbaImage,
     text: &str,
-    fg_color: &Colour,
+    fg_color: Rgba<u8>,
     padding: f32,
     y_offset: f32,
 ) {
@@ -279,12 +274,11 @@ fn draw_centered_text(
     let x = ((width as f32 - text_width) / 2.0).max(0.0) as i32;
     let y = (reserved_top + (available_height - line_height) / 2.0 + y_offset) as i32;
 
-    let color = Rgba([fg_color.r, fg_color.g, fg_color.b, 255]);
-    draw_text_mut(rgba, color, x, y, scale, &font, text);
+    draw_text_mut(rgba, fg_color, x, y, scale, &font, text);
 }
 
 /// Draw phase indicator at the top
-fn draw_phase_indicator(rgba: &mut RgbaImage, text: &str, fg_color: &Colour, _padding: f32) {
+fn draw_phase_indicator(rgba: &mut RgbaImage, text: &str, fg_color: Rgba<u8>, _padding: f32) {
     let Some(font_bytes) = get_system_monospace_font() else {
         return;
     };
@@ -305,8 +299,7 @@ fn draw_phase_indicator(rgba: &mut RgbaImage, text: &str, fg_color: &Colour, _pa
     let x = ((width as f32 - text_width) / 2.0).max(0.0) as i32;
     let y = 4; // 4px margin from top
 
-    let color = Rgba([fg_color.r, fg_color.g, fg_color.b, 255]);
-    draw_text_mut(rgba, color, x, y, scale, &font, text);
+    draw_text_mut(rgba, fg_color, x, y, scale, &font, text);
 }
 
 /// Calculate the width of a line of text using actual font metrics

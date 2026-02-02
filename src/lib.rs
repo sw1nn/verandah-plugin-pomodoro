@@ -15,6 +15,7 @@ use verandah_plugin_api::prelude::*;
 use std::path::PathBuf;
 
 pub mod cli;
+mod colors;
 mod config;
 mod error;
 mod render;
@@ -22,56 +23,34 @@ pub mod socket;
 mod sound;
 mod timer;
 
-use config::{Colour, Config, DEFAULT_INTERVAL_MS};
+use image::Rgba;
+
+use config::{Config, DEFAULT_INTERVAL_MS};
 use socket::{Command, SocketListener};
 use timer::{Phase, Timer, Transition};
 
 const WIDGET_TYPE: &str = "pomodoro";
 
 // Default colors used when parsing fails
-const DEFAULT_FG: Colour = Colour {
-    r: 255,
-    g: 255,
-    b: 255,
-}; // White
-const DEFAULT_WORK_BG: Colour = Colour {
-    r: 229,
-    g: 115,
-    b: 115,
-}; // Soft coral
-const DEFAULT_BREAK_BG: Colour = Colour {
-    r: 129,
-    g: 199,
-    b: 132,
-}; // Soft mint
-const DEFAULT_PAUSED_BG: Colour = Colour {
-    r: 127,
-    g: 140,
-    b: 141,
-}; // Gray
+const DEFAULT_FG: Rgba<u8> = Rgba([255, 255, 255, 255]); // White
+const DEFAULT_WORK_BG: Rgba<u8> = Rgba([229, 115, 115, 255]); // Soft coral
+const DEFAULT_BREAK_BG: Rgba<u8> = Rgba([129, 199, 132, 255]); // Soft mint
+const DEFAULT_PAUSED_BG: Rgba<u8> = Rgba([127, 140, 141, 255]); // Gray
 
-fn parse_colors(colors: &HashMap<String, String>) -> HashMap<String, Colour> {
+fn parse_colors(colors: &HashMap<String, String>) -> HashMap<String, Rgba<u8>> {
     let mut parsed = HashMap::new();
     for (key, value) in colors {
-        if let Some(colour) = Colour::parse(value) {
-            parsed.insert(key.clone(), colour);
+        if let Some(rgba) = colors::lookup(value) {
+            parsed.insert(key.clone(), rgba);
         } else {
-            tracing::warn!(
-                key,
-                value,
-                "Invalid color format, expected '#RRGGBB' or '#RGB'"
-            );
+            tracing::warn!(key, value, "Invalid color format");
         }
     }
     parsed
 }
 
-fn get_color<'a>(
-    colors: &'a HashMap<String, Colour>,
-    key: &str,
-    default: &'a Colour,
-) -> &'a Colour {
-    colors.get(key).unwrap_or(default)
+fn get_color(colors: &HashMap<String, Rgba<u8>>, key: &str, default: Rgba<u8>) -> Rgba<u8> {
+    colors.get(key).copied().unwrap_or(default)
 }
 
 struct PomodoroWidget {
@@ -80,7 +59,7 @@ struct PomodoroWidget {
     interval: PluginDuration,
     last_tick: Option<Instant>,
     // Parsed colors (keys: fg, work_bg, break_bg, paused_bg)
-    colors: HashMap<String, Colour>,
+    colors: HashMap<String, Rgba<u8>>,
     padding: f32,
     phases: HashMap<String, String>,
     // Labels/fallback text (keys: work, short_break, long_break, paused)
@@ -263,10 +242,10 @@ impl WidgetPlugin for PomodoroWidget {
             &self.timer,
             image_size.width,
             image_size.height,
-            get_color(&self.colors, "fg", &DEFAULT_FG),
-            get_color(&self.colors, "work_bg", &DEFAULT_WORK_BG),
-            get_color(&self.colors, "break_bg", &DEFAULT_BREAK_BG),
-            get_color(&self.colors, "paused_bg", &DEFAULT_PAUSED_BG),
+            get_color(&self.colors, "fg", DEFAULT_FG),
+            get_color(&self.colors, "work_bg", DEFAULT_WORK_BG),
+            get_color(&self.colors, "break_bg", DEFAULT_BREAK_BG),
+            get_color(&self.colors, "paused_bg", DEFAULT_PAUSED_BG),
             self.padding,
             icon,
             fallback_text,

@@ -24,6 +24,7 @@ pub enum Commands {
 }
 
 impl Commands {
+    #[allow(dead_code)]
     pub fn as_str(&self) -> &'static str {
         match self {
             Commands::Toggle => "toggle",

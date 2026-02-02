@@ -1,7 +1,9 @@
 use derive_more::From;
 
+#[allow(dead_code)]
 pub type Result<T = ()> = std::result::Result<T, Error>;
 
+#[allow(dead_code)]
 #[derive(Debug, From)]
 pub enum Error {
     #[from]
