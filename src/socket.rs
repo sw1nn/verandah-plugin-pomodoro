@@ -4,9 +4,9 @@ use std::{
     os::unix::net::{UnixListener, UnixStream},
     path::PathBuf,
     sync::{
+        Arc,
         atomic::{AtomicBool, Ordering},
         mpsc::{self, Receiver, Sender},
-        Arc,
     },
     thread::{self, JoinHandle},
 };
@@ -49,7 +49,9 @@ impl Command {
             Command::Start => timer.start(),
             Command::Stop => timer.pause(),
             Command::Reset => timer.reset(),
-            Command::Skip => timer.skip(),
+            Command::Skip => {
+                let _ = timer.skip();
+            }
         }
     }
 }
@@ -64,12 +66,9 @@ pub fn get_socket_path() -> Option<PathBuf> {
 pub fn find_socket() -> Option<PathBuf> {
     let xdg = BaseDirectories::with_prefix(SOCKET_DIR).ok()?;
 
-    for path in xdg.list_runtime_files(".") {
-        if path.file_name().map(|n| n == SOCKET_NAME).unwrap_or(false) {
-            return Some(path);
-        }
-    }
-    None
+    xdg.list_runtime_files(".")
+        .into_iter()
+        .find(|path| path.file_name().map(|n| n == SOCKET_NAME).unwrap_or(false))
 }
 
 /// Send a command to a running pomodoro instance
@@ -98,12 +97,8 @@ pub struct SocketListener {
 
 impl SocketListener {
     pub fn new(command_tx: Sender<Command>) -> std::io::Result<Self> {
-        let socket_path = get_socket_path().ok_or_else(|| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to determine XDG runtime directory",
-            )
-        })?;
+        let socket_path = get_socket_path()
+            .ok_or_else(|| std::io::Error::other("Failed to determine XDG runtime directory"))?;
 
         // Remove existing socket if present
         if socket_path.exists() {

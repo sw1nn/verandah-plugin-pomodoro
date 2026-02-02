@@ -8,6 +8,17 @@ pub enum Phase {
     LongBreak,
 }
 
+/// Represents a phase transition after tick
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Transition {
+    /// No transition occurred
+    None,
+    /// Work phase completed, transitioned to break
+    WorkComplete,
+    /// Break phase completed, transitioned to work
+    BreakComplete,
+}
+
 impl Phase {
     pub fn is_break(self) -> bool {
         matches!(self, Phase::ShortBreak | Phase::LongBreak)
@@ -121,29 +132,30 @@ impl Timer {
     }
 
     /// Skip to the next phase without waiting
-    pub fn skip(&mut self) {
-        self.transition_to_next_phase();
+    /// Returns the type of transition that occurred
+    pub fn skip(&mut self) -> Transition {
+        self.transition_to_next_phase()
     }
 
     /// Advance time by one second, handling phase transitions
-    /// Returns true if a phase transition occurred
-    pub fn tick(&mut self) -> bool {
+    /// Returns the type of transition that occurred (if any)
+    pub fn tick(&mut self) -> Transition {
         if !self.running {
-            return false;
+            return Transition::None;
         }
 
         self.elapsed_secs += 1;
 
         if self.elapsed_secs >= self.current_duration() {
-            self.transition_to_next_phase();
-            return true;
+            return self.transition_to_next_phase();
         }
 
-        false
+        Transition::None
     }
 
-    fn transition_to_next_phase(&mut self) {
+    fn transition_to_next_phase(&mut self) -> Transition {
         self.elapsed_secs = 0;
+        let from_phase = self.phase;
 
         match self.phase {
             Phase::Work => {
@@ -168,6 +180,12 @@ impl Timer {
                 self.running = self.auto_start_work;
             }
         }
+
+        if from_phase == Phase::Work {
+            Transition::WorkComplete
+        } else {
+            Transition::BreakComplete
+        }
     }
 }
 
@@ -177,7 +195,7 @@ mod tests {
 
     fn test_config() -> Config {
         Config {
-            work: 1,        // 1 minute for faster tests
+            work: 1, // 1 minute for faster tests
             short_break: 1,
             long_break: 1,
             auto_start_work: false,

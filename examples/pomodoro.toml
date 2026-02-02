@@ -23,19 +23,27 @@ shape = [3, 5]
 
 # Main pomodoro timer - center of top row
 # Press to toggle start/stop
+# When paused during work, shows the 'work' icon
+# When paused during break, shows the 'break' icon
 [[keys]]
 index = 2
 [keys.widget]
 id = "pomodoro"
+icons = { work = "pomodoro", short_break = "pomodoro-coffee", long_break = "pomodoro-beach-umbrella" }
 [keys.widget.config]
-work = "25"
-short_break = "5"
-long_break = "15"
+work = "1"
+short_break = "1"
+long_break = "1"
 interval = "1000"
 work_bg = "c0392b"    # Pomegranate red
 break_bg = "27ae60"   # Nephritis green
 paused_bg = "34495e"  # Wet asphalt gray
 fg_color = "ecf0f1"   # Clouds white
+icon = "work"                       # Show 'work' icon when paused during work phase
+short_break_icon = "short_break"    # Show coffee icon when paused during short break
+long_break_icon = "long_break"      # Show beach umbrella icon when paused during long break
+work_sound = "alarm-clock-elapsed"   # Sound when work ends (searches XDG sound dirs)
+break_sound = "complete"             # Sound when break ends
 [keys.action]
 exec = "verandah-pomodoroctl toggle"
 

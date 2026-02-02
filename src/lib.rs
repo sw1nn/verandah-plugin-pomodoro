@@ -11,16 +11,19 @@ use std::time::Instant;
 
 use verandah_plugin_api::prelude::*;
 
+use std::path::PathBuf;
+
 pub mod cli;
 mod config;
 mod error;
 mod render;
 pub mod socket;
+mod sound;
 mod timer;
 
 use config::{Colour, Config, DEFAULT_INTERVAL_MS};
 use socket::{Command, SocketListener};
-use timer::Timer;
+use timer::{Phase, Timer, Transition};
 
 const WIDGET_TYPE: &str = "pomodoro";
 
@@ -35,6 +38,16 @@ struct PomodoroWidget {
     break_bg: Colour,
     paused_bg: Colour,
     padding: f32,
+    // Icon key to display when paused during work
+    icon: Option<String>,
+    // Icon key to display when paused during short break
+    short_break_icon: Option<String>,
+    // Icon key to display when paused during long break
+    long_break_icon: Option<String>,
+    // Sound to play when work completes
+    work_sound: Option<PathBuf>,
+    // Sound to play when break completes
+    break_sound: Option<PathBuf>,
     // Socket control
     command_rx: Option<Receiver<Command>>,
     socket_listener: Option<SocketListener>,
@@ -48,11 +61,32 @@ impl PomodoroWidget {
             config: PluginConfig::new(),
             interval: PluginDuration::from_millis(DEFAULT_INTERVAL_MS),
             last_tick: None,
-            fg_color: Colour::parse(&cfg.fg_color).unwrap_or(Colour { r: 255, g: 255, b: 255 }),
-            work_bg: Colour::parse(&cfg.work_bg).unwrap_or(Colour { r: 192, g: 57, b: 43 }),
-            break_bg: Colour::parse(&cfg.break_bg).unwrap_or(Colour { r: 39, g: 174, b: 96 }),
-            paused_bg: Colour::parse(&cfg.paused_bg).unwrap_or(Colour { r: 127, g: 140, b: 141 }),
+            fg_color: Colour::parse(&cfg.fg_color).unwrap_or(Colour {
+                r: 255,
+                g: 255,
+                b: 255,
+            }),
+            work_bg: Colour::parse(&cfg.work_bg).unwrap_or(Colour {
+                r: 192,
+                g: 57,
+                b: 43,
+            }),
+            break_bg: Colour::parse(&cfg.break_bg).unwrap_or(Colour {
+                r: 39,
+                g: 174,
+                b: 96,
+            }),
+            paused_bg: Colour::parse(&cfg.paused_bg).unwrap_or(Colour {
+                r: 127,
+                g: 140,
+                b: 141,
+            }),
             padding: cfg.padding,
+            icon: cfg.icon,
+            short_break_icon: cfg.short_break_icon,
+            long_break_icon: cfg.long_break_icon,
+            work_sound: None,
+            break_sound: None,
             command_rx: None,
             socket_listener: None,
         }
@@ -104,11 +138,41 @@ impl WidgetPlugin for PomodoroWidget {
 
         self.timer = Timer::new(&cfg);
         self.interval = PluginDuration::from_millis(cfg.interval);
-        self.fg_color = Colour::parse(&cfg.fg_color).unwrap_or(Colour { r: 255, g: 255, b: 255 });
-        self.work_bg = Colour::parse(&cfg.work_bg).unwrap_or(Colour { r: 192, g: 57, b: 43 });
-        self.break_bg = Colour::parse(&cfg.break_bg).unwrap_or(Colour { r: 39, g: 174, b: 96 });
-        self.paused_bg = Colour::parse(&cfg.paused_bg).unwrap_or(Colour { r: 127, g: 140, b: 141 });
+        self.fg_color = Colour::parse(&cfg.fg_color).unwrap_or(Colour {
+            r: 255,
+            g: 255,
+            b: 255,
+        });
+        self.work_bg = Colour::parse(&cfg.work_bg).unwrap_or(Colour {
+            r: 192,
+            g: 57,
+            b: 43,
+        });
+        self.break_bg = Colour::parse(&cfg.break_bg).unwrap_or(Colour {
+            r: 39,
+            g: 174,
+            b: 96,
+        });
+        self.paused_bg = Colour::parse(&cfg.paused_bg).unwrap_or(Colour {
+            r: 127,
+            g: 140,
+            b: 141,
+        });
         self.padding = cfg.padding.clamp(0.0, 0.4);
+        self.icon = cfg.icon;
+        self.short_break_icon = cfg.short_break_icon;
+        self.long_break_icon = cfg.long_break_icon;
+
+        // Resolve sound paths
+        self.work_sound = cfg.work_sound.as_deref().and_then(sound::resolve_sound);
+        self.break_sound = cfg.break_sound.as_deref().and_then(sound::resolve_sound);
+
+        if let Some(path) = &self.work_sound {
+            tracing::info!(path = %path.display(), "Work sound configured");
+        }
+        if let Some(path) = &self.break_sound {
+            tracing::info!(path = %path.display(), "Break sound configured");
+        }
 
         // Start the socket listener for external control
         self.start_socket_listener();
@@ -138,8 +202,23 @@ impl WidgetPlugin for PomodoroWidget {
             let elapsed = now.duration_since(last);
             // Tick once per second
             if elapsed.as_secs() >= 1 {
-                self.timer.tick();
+                let transition = self.timer.tick();
                 self.last_tick = Some(now);
+
+                // Play sound on phase transition
+                match transition {
+                    Transition::WorkComplete => {
+                        if let Some(path) = &self.work_sound {
+                            sound::play_sound(path);
+                        }
+                    }
+                    Transition::BreakComplete => {
+                        if let Some(path) = &self.break_sound {
+                            sound::play_sound(path);
+                        }
+                    }
+                    Transition::None => {}
+                }
             }
         } else {
             self.last_tick = Some(now);
@@ -152,10 +231,30 @@ impl WidgetPlugin for PomodoroWidget {
 
     fn render(
         &self,
-        _images: RHashMap<RString, PluginImage>,
+        images: RHashMap<RString, PluginImage>,
         _state: &PluginWidgetState,
         image_size: PluginImageSize,
     ) -> PluginResult<PluginImage> {
+        // Get the appropriate icon if timer is not running
+        let paused_icon = if !self.timer.is_running() {
+            // Choose icon based on current phase
+            let phase = self.timer.phase();
+            let icon_key = match phase {
+                Phase::Work => self.icon.as_deref(),
+                Phase::ShortBreak => self.short_break_icon.as_deref(),
+                Phase::LongBreak => self.long_break_icon.as_deref(),
+            };
+            tracing::debug!(
+                ?phase,
+                ?icon_key,
+                available_icons = ?images.keys().collect::<Vec<_>>(),
+                "Selecting paused icon"
+            );
+            icon_key.and_then(|key| images.get(&RString::from(key)))
+        } else {
+            None
+        };
+
         let rgb_img = render::render_button(
             &self.timer,
             image_size.width,
@@ -165,6 +264,7 @@ impl WidgetPlugin for PomodoroWidget {
             &self.break_bg,
             &self.paused_bg,
             self.padding,
+            paused_icon,
         );
 
         PluginResult::ROk(PluginImage::from_rgb(

@@ -4,6 +4,7 @@ use ab_glyph::{Font, FontRef, PxScale, ScaleFont};
 use image::{Rgb, RgbImage, Rgba, RgbaImage};
 use imageproc::drawing::{draw_filled_rect_mut, draw_text_mut};
 use imageproc::rect::Rect;
+use verandah_plugin_api::prelude::PluginImage;
 
 use crate::config::Colour;
 use crate::timer::{Phase, Timer};
@@ -37,7 +38,15 @@ pub fn render_button(
     break_bg: &Colour,
     paused_bg: &Colour,
     padding: f32,
+    paused_icon: Option<&PluginImage>,
 ) -> RgbImage {
+    // If paused and we have an icon, just render the icon
+    if !timer.is_running()
+        && let Some(icon) = paused_icon
+    {
+        return render_icon(icon, width, height);
+    }
+
     let mut rgba = RgbaImage::new(width, height);
 
     // Determine background color based on state
@@ -75,6 +84,38 @@ pub fn render_button(
         let pixel = rgba.get_pixel(x, y);
         Rgb([pixel[0], pixel[1], pixel[2]])
     })
+}
+
+/// Render an icon image, scaling to fit the button
+fn render_icon(icon: &PluginImage, width: u32, height: u32) -> RgbImage {
+    // If icon is the right size, just copy it
+    if icon.width == width && icon.height == height {
+        return RgbImage::from_fn(width, height, |x, y| {
+            let idx = ((y * width + x) * 3) as usize;
+            if idx + 2 < icon.data.len() {
+                Rgb([icon.data[idx], icon.data[idx + 1], icon.data[idx + 2]])
+            } else {
+                Rgb([0, 0, 0])
+            }
+        });
+    }
+
+    // Otherwise, scale the icon to fit
+    let src_img = RgbImage::from_fn(icon.width, icon.height, |x, y| {
+        let idx = ((y * icon.width + x) * 3) as usize;
+        if idx + 2 < icon.data.len() {
+            Rgb([icon.data[idx], icon.data[idx + 1], icon.data[idx + 2]])
+        } else {
+            Rgb([0, 0, 0])
+        }
+    });
+
+    image::imageops::resize(
+        &src_img,
+        width,
+        height,
+        image::imageops::FilterType::Lanczos3,
+    )
 }
 
 /// Draw iteration progress dots at the top

@@ -31,6 +31,16 @@ pub struct Config {
     pub fg_color: String,
     /// Text padding as fraction of button size (0.0 to 0.4)
     pub padding: f32,
+    /// Icon key to display when paused during work (from icons config)
+    pub icon: Option<String>,
+    /// Icon key to display when paused during short break (from icons config)
+    pub short_break_icon: Option<String>,
+    /// Icon key to display when paused during long break (from icons config)
+    pub long_break_icon: Option<String>,
+    /// Sound file to play when work period ends
+    pub work_sound: Option<String>,
+    /// Sound file to play when break period ends
+    pub break_sound: Option<String>,
 }
 
 impl Default for Config {
@@ -42,11 +52,16 @@ impl Default for Config {
             auto_start_work: false,
             auto_start_break: false,
             interval: DEFAULT_INTERVAL_MS,
-            work_bg: "c0392b".to_string(),   // Red
-            break_bg: "27ae60".to_string(),  // Green
-            paused_bg: "7f8c8d".to_string(), // Gray
-            fg_color: "ffffff".to_string(),  // White
+            work_bg: "#c0392b".to_string(),   // Red
+            break_bg: "#27ae60".to_string(),  // Green
+            paused_bg: "#7f8c8d".to_string(), // Gray
+            fg_color: "#ffffff".to_string(),  // White
             padding: DEFAULT_PADDING,
+            icon: None,
+            short_break_icon: None,
+            long_break_icon: None,
+            work_sound: None,
+            break_sound: None,
         }
     }
 }
@@ -63,7 +78,7 @@ impl Colour {
     where
         S: AsRef<str>,
     {
-        let s = s.as_ref();
+        let s = s.as_ref().strip_prefix('#').unwrap_or(s.as_ref());
         if s.len() < 6 {
             return None;
         }
@@ -71,6 +86,30 @@ impl Colour {
         let g = u8::from_str_radix(&s[2..4], 16).ok()?;
         let b = u8::from_str_radix(&s[4..6], 16).ok()?;
         Some(Colour { r, g, b })
+    }
+}
+
+impl TryFrom<&str> for Colour {
+    type Error = &'static str;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Colour::parse(s).ok_or("invalid colour format, expected '#rrggbb' or 'rrggbb'")
+    }
+}
+
+impl TryFrom<String> for Colour {
+    type Error = &'static str;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Colour::parse(&s).ok_or("invalid colour format, expected '#rrggbb' or 'rrggbb'")
+    }
+}
+
+impl TryFrom<&String> for Colour {
+    type Error = &'static str;
+
+    fn try_from(s: &String) -> Result<Self, Self::Error> {
+        Colour::parse(s).ok_or("invalid colour format, expected '#rrggbb' or 'rrggbb'")
     }
 }
 
@@ -88,8 +127,35 @@ mod tests {
     }
 
     #[test]
+    fn test_colour_parse_with_hash() -> crate::error::Result<()> {
+        let c = Colour::parse("#a1b2c3").unwrap();
+        assert_eq!(c.r, 0xa1);
+        assert_eq!(c.g, 0xb2);
+        assert_eq!(c.b, 0xc3);
+        Ok(())
+    }
+
+    #[test]
     fn test_colour_parse_too_short() -> crate::error::Result<()> {
         assert!(Colour::parse("fff").is_none());
+        assert!(Colour::parse("#fff").is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn test_colour_try_from() -> crate::error::Result<()> {
+        let c: Colour = "#ff0000".try_into().unwrap();
+        assert_eq!(c.r, 255);
+        assert_eq!(c.g, 0);
+        assert_eq!(c.b, 0);
+
+        let c: Colour = "00ff00".try_into().unwrap();
+        assert_eq!(c.r, 0);
+        assert_eq!(c.g, 255);
+        assert_eq!(c.b, 0);
+
+        let result: Result<Colour, _> = "bad".try_into();
+        assert!(result.is_err());
         Ok(())
     }
 

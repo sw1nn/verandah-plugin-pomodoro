@@ -27,6 +27,9 @@ imageproc = "0.25"
 ab_glyph = "0.2"
 fontconfig = "0.6"
 
+# Audio
+rodio = { version = "0.19", default-features = false, features = ["mp3", "wav", "vorbis"] }
+
 [build-dependencies]
 clap = { version = "4", features = ["derive"] }
 clap_complete = "4"
