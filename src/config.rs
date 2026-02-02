@@ -31,12 +31,6 @@ pub struct Config {
     pub fg_color: String,
     /// Text padding as fraction of button size (0.0 to 0.4)
     pub padding: f32,
-    /// Icon key to display when paused during work (from icons config)
-    pub icon: Option<String>,
-    /// Icon key to display when paused during short break (from icons config)
-    pub short_break_icon: Option<String>,
-    /// Icon key to display when paused during long break (from icons config)
-    pub long_break_icon: Option<String>,
     /// Sound file to play when work period ends
     pub work_sound: Option<String>,
     /// Sound file to play when break period ends
@@ -57,9 +51,6 @@ impl Default for Config {
             paused_bg: "#7f8c8d".to_string(), // Gray
             fg_color: "#ffffff".to_string(),  // White
             padding: DEFAULT_PADDING,
-            icon: None,
-            short_break_icon: None,
-            long_break_icon: None,
             work_sound: None,
             break_sound: None,
         }

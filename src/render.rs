@@ -39,12 +39,17 @@ pub fn render_button(
     paused_bg: &Colour,
     padding: f32,
     paused_icon: Option<&PluginImage>,
+    fallback_text: Option<&str>,
 ) -> RgbImage {
     // If paused and we have an icon, just render the icon
-    if !timer.is_running()
-        && let Some(icon) = paused_icon
-    {
-        return render_icon(icon, width, height);
+    if !timer.is_running() {
+        if let Some(icon) = paused_icon {
+            return render_icon(icon, width, height);
+        }
+        // No icon found, render fallback text
+        if let Some(text) = fallback_text {
+            return render_paused_text(text, width, height, fg_color, paused_bg, padding);
+        }
     }
 
     let mut rgba = RgbaImage::new(width, height);
@@ -78,6 +83,57 @@ pub fn render_button(
 
     // Draw phase indicator (bottom)
     draw_phase_indicator(&mut rgba, phase_indicator, fg_color, padding);
+
+    // Convert to RGB
+    RgbImage::from_fn(width, height, |x, y| {
+        let pixel = rgba.get_pixel(x, y);
+        Rgb([pixel[0], pixel[1], pixel[2]])
+    })
+}
+
+/// Render fallback text when paused and no icon is available
+fn render_paused_text(
+    text: &str,
+    width: u32,
+    height: u32,
+    fg_color: &Colour,
+    paused_bg: &Colour,
+    padding: f32,
+) -> RgbImage {
+    let mut rgba = RgbaImage::new(width, height);
+
+    // Fill with paused background
+    let bg_rgba = Rgba([paused_bg.r, paused_bg.g, paused_bg.b, 255]);
+    draw_filled_rect_mut(&mut rgba, Rect::at(0, 0).of_size(width, height), bg_rgba);
+
+    // Draw centered text (supports multiline)
+    if let Some(font_bytes) = get_system_monospace_font() {
+        if let Ok(font) = FontRef::try_from_slice(font_bytes) {
+            let lines: Vec<&str> = text.lines().collect();
+            let content_fraction = 1.0 - (2.0 * padding);
+            let target_width = width as f32 * content_fraction;
+            let target_height = height as f32 * content_fraction;
+            let scale_value = find_optimal_scale(&font, &lines, target_width, target_height);
+            let scale = PxScale::from(scale_value);
+
+            let scaled_font = font.as_scaled(scale);
+            let line_height = scaled_font.height();
+            let total_height = line_height * lines.len() as f32;
+            let start_y = (height as f32 - total_height) / 2.0;
+
+            let color = Rgba([fg_color.r, fg_color.g, fg_color.b, 255]);
+
+            for (i, line) in lines.iter().enumerate() {
+                let text_width: f32 = line
+                    .chars()
+                    .map(|c| scaled_font.h_advance(font.glyph_id(c)))
+                    .sum();
+                let x = ((width as f32 - text_width) / 2.0).max(0.0) as i32;
+                let y = (start_y + line_height * i as f32) as i32;
+                draw_text_mut(&mut rgba, color, x, y, scale, &font, line);
+            }
+        }
+    }
 
     // Convert to RGB
     RgbImage::from_fn(width, height, |x, y| {

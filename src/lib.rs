@@ -38,12 +38,6 @@ struct PomodoroWidget {
     break_bg: Colour,
     paused_bg: Colour,
     padding: f32,
-    // Icon key to display when paused during work
-    icon: Option<String>,
-    // Icon key to display when paused during short break
-    short_break_icon: Option<String>,
-    // Icon key to display when paused during long break
-    long_break_icon: Option<String>,
     // Sound to play when work completes
     work_sound: Option<PathBuf>,
     // Sound to play when break completes
@@ -82,9 +76,6 @@ impl PomodoroWidget {
                 b: 141,
             }),
             padding: cfg.padding,
-            icon: cfg.icon,
-            short_break_icon: cfg.short_break_icon,
-            long_break_icon: cfg.long_break_icon,
             work_sound: None,
             break_sound: None,
             command_rx: None,
@@ -159,9 +150,6 @@ impl WidgetPlugin for PomodoroWidget {
             b: 141,
         });
         self.padding = cfg.padding.clamp(0.0, 0.4);
-        self.icon = cfg.icon;
-        self.short_break_icon = cfg.short_break_icon;
-        self.long_break_icon = cfg.long_break_icon;
 
         // Resolve sound paths
         self.work_sound = cfg.work_sound.as_deref().and_then(sound::resolve_sound);
@@ -235,24 +223,18 @@ impl WidgetPlugin for PomodoroWidget {
         _state: &PluginWidgetState,
         image_size: PluginImageSize,
     ) -> PluginResult<PluginImage> {
-        // Get the appropriate icon if timer is not running
-        let paused_icon = if !self.timer.is_running() {
-            // Choose icon based on current phase
+        // When not running: show icon or fallback text
+        // When running: show timer
+        let (icon, fallback_text) = if !self.timer.is_running() {
             let phase = self.timer.phase();
-            let icon_key = match phase {
-                Phase::Work => self.icon.as_deref(),
-                Phase::ShortBreak => self.short_break_icon.as_deref(),
-                Phase::LongBreak => self.long_break_icon.as_deref(),
+            let (icon_key, fallback) = match phase {
+                Phase::Work => ("work", "Work"),
+                Phase::ShortBreak => ("short_break", "Short\nBreak"),
+                Phase::LongBreak => ("long_break", "Long\nBreak"),
             };
-            tracing::debug!(
-                ?phase,
-                ?icon_key,
-                available_icons = ?images.keys().collect::<Vec<_>>(),
-                "Selecting paused icon"
-            );
-            icon_key.and_then(|key| images.get(&RString::from(key)))
+            (images.get(&RString::from(icon_key)), Some(fallback))
         } else {
-            None
+            (None, None)
         };
 
         let rgb_img = render::render_button(
@@ -264,7 +246,8 @@ impl WidgetPlugin for PomodoroWidget {
             &self.break_bg,
             &self.paused_bg,
             self.padding,
-            paused_icon,
+            icon,
+            fallback_text,
         );
 
         PluginResult::ROk(PluginImage::from_rgb(
