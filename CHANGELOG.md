@@ -2,6 +2,19 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.4.0 - 2026-02-02
+#### Features
+- (**render**) improve button layout and skip behavior - (f740fda) - Neale Swinnerton
+- (**render**) use fixed icon keys with text fallback - (c3a72c0) - Neale Swinnerton
+#### Documentation
+- (**examples**) clarify icon vs text fallback variants - (0217fb5) - Neale Swinnerton
+#### Refactoring
+- (**config**) use HashMaps for colors, sounds, phases, and labels - (b0e4ad6) - Neale Swinnerton
+#### Style
+- apply clippy and fmt fixes - (9741373) - Neale Swinnerton
+
+- - -
+
 ## v0.3.0 - 2026-02-02
 
 - - -
