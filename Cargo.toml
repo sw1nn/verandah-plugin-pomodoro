@@ -13,8 +13,8 @@ name = "verandah-pomodoroctl"
 path = "src/bin/pomodoroctl.rs"
 
 [dependencies]
-verandah-plugin-api = { git = "ssh://gitea@git.sw1nn.net/sw1nn/verandah-plugin-api.git", tag = "v0.2.0" }
-verandah-plugin-utils = { git = "ssh://gitea@git.sw1nn.net/sw1nn/verandah-plugin-utils.git", tag = "v0.1.0" }
+verandah-plugin-api = { git = "https://github.com/sw1nn/verandah-plugin-api.git", tag = "v0.2.0" }
+verandah-plugin-utils = { git = "https://github.com/sw1nn/verandah-plugin-utils.git", tag = "v0.1.0" }
 toml = "0.9"
 abi_stable = "0.11"
 serde = { version = "1", features = ["derive"] }
