@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.8.0 - 2026-02-03
+#### Features
+- (**render**) use greyscale for unfilled portion in fill_icon mode - (8cf8105) - Neale Swinnerton
+- (**render**) add fill_icon render mode - (1bbe9bb) - Neale Swinnerton
+
+- - -
+
 ## v0.7.0 - 2026-02-03
 #### Features
 - (**render**) add filling-bucket render mode with configurable fill direction - (989c17f) - Neale Swinnerton
