@@ -216,14 +216,15 @@ mod tests {
     use super::*;
 
     fn test_config() -> Config {
-        Config {
-            work: 1, // 1 minute for faster tests
-            short_break: 1,
-            long_break: 1,
-            auto_start_work: false,
-            auto_start_break: false,
-            ..Config::default()
-        }
+        use crate::config::ConfigBuilder;
+        let toml_str = r#"
+work = 1
+short_break = 1
+long_break = 1
+auto_start_work = false
+auto_start_break = false
+"#;
+        toml::from_str::<ConfigBuilder>(toml_str).unwrap().build()
     }
 
     #[test]
@@ -249,10 +250,10 @@ mod tests {
 
     #[test]
     fn test_remaining_formatted() -> crate::error::Result<()> {
-        let config = Config {
-            work: 25,
-            ..Config::default()
-        };
+        use crate::config::ConfigBuilder;
+        let config: Config = toml::from_str::<ConfigBuilder>("work = 25")
+            .unwrap()
+            .build();
         let timer = Timer::new(&config);
         assert_eq!(timer.remaining_formatted(), "25:00");
         Ok(())
@@ -286,14 +287,15 @@ mod tests {
 
     #[test]
     fn test_full_pomodoro_cycle() -> crate::error::Result<()> {
-        let config = Config {
-            work: 1,
-            short_break: 1,
-            long_break: 1,
-            auto_start_work: true,
-            auto_start_break: true,
-            ..Config::default()
-        };
+        use crate::config::ConfigBuilder;
+        let toml_str = r#"
+work = 1
+short_break = 1
+long_break = 1
+auto_start_work = true
+auto_start_break = true
+"#;
+        let config: Config = toml::from_str::<ConfigBuilder>(toml_str).unwrap().build();
         let mut timer = Timer::new(&config);
         timer.start();
 
@@ -312,11 +314,12 @@ mod tests {
 
     #[test]
     fn test_reset() -> crate::error::Result<()> {
-        let config = Config {
-            work: 1,
-            auto_start_break: true,
-            ..Config::default()
-        };
+        use crate::config::ConfigBuilder;
+        let toml_str = r#"
+work = 1
+auto_start_break = true
+"#;
+        let config: Config = toml::from_str::<ConfigBuilder>(toml_str).unwrap().build();
         let mut timer = Timer::new(&config);
         timer.start();
 

@@ -11,8 +11,8 @@ pub const DEFAULT_PADDING: f32 = 0.05;
 pub const DEFAULT_RENDER_MODE: &str = "text";
 pub const DEFAULT_FILL_DIRECTION: &str = "empty_to_full";
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
+/// Final configuration after building from TOML
+#[derive(Debug, Clone)]
 pub struct Config {
     /// Work duration in minutes
     pub work: u64,
@@ -35,27 +35,45 @@ pub struct Config {
     /// Pulse brightness when paused (for icon-based render modes)
     pub pulse_on_pause: bool,
     /// Sound files to play on phase transitions (keys: work, break)
-    #[serde(default)]
     pub sounds: HashMap<String, String>,
     /// Phase indicator text (keys: work, short_break, long_break)
-    #[serde(default)]
     pub phases: HashMap<String, String>,
     /// Labels/fallback text (keys: work, short_break, long_break, paused)
-    #[serde(default)]
     pub labels: HashMap<String, String>,
     /// Colors (keys: fg, work_bg, break_bg, paused_bg, empty_bg) - format: #RRGGBB or #RGB
-    /// empty_bg is the unfilled background color in fill_bg mode
-    #[serde(default, alias = "colours")]
     pub colors: HashMap<String, String>,
-
-    /// Catch-all for unknown fields (logged as warnings)
-    #[serde(flatten)]
-    pub unknown: HashMap<String, Value>,
 }
 
-impl Default for Config {
+/// Builder for Config that deserializes from TOML and applies defaults
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct ConfigBuilder {
+    work: u64,
+    short_break: u64,
+    long_break: u64,
+    auto_start_work: bool,
+    auto_start_break: bool,
+    interval: u64,
+    padding: f32,
+    render_mode: String,
+    fill_direction: String,
+    pulse_on_pause: bool,
+    #[serde(default)]
+    sounds: HashMap<String, String>,
+    #[serde(default)]
+    phases: HashMap<String, String>,
+    #[serde(default)]
+    labels: HashMap<String, String>,
+    #[serde(default, alias = "colours")]
+    colors: HashMap<String, String>,
+    /// Catch-all for unknown fields (logged as warnings in build())
+    #[serde(flatten)]
+    unknown: HashMap<String, Value>,
+}
+
+impl Default for ConfigBuilder {
     fn default() -> Self {
-        Config {
+        ConfigBuilder {
             work: DEFAULT_WORK_MINS,
             short_break: DEFAULT_SHORT_BREAK_MINS,
             long_break: DEFAULT_LONG_BREAK_MINS,
@@ -68,14 +86,14 @@ impl Default for Config {
             pulse_on_pause: false,
             sounds: HashMap::new(),
             phases: HashMap::new(),
-            labels: Self::default_labels(),
-            colors: Self::default_colors(),
+            labels: HashMap::new(),
+            colors: HashMap::new(),
             unknown: HashMap::new(),
         }
     }
 }
 
-impl Config {
+impl ConfigBuilder {
     fn default_colors() -> HashMap<String, String> {
         let mut colors = HashMap::new();
         colors.insert("fg".to_string(), "#ffffff".to_string()); // White
@@ -92,10 +110,9 @@ impl Config {
         labels
     }
 
-    /// Merge HashMap fields with defaults for any missing keys.
-    /// Call this after deserializing to ensure all expected keys are present.
-    /// Also logs warnings for any unknown config fields.
-    pub fn with_defaults(mut self) -> Self {
+    /// Build the final Config, logging warnings for unknown fields
+    /// and merging defaults for colors/labels.
+    pub fn build(mut self) -> Config {
         // Log warnings for unknown fields (skip internal fields added by verandah)
         for key in self.unknown.keys() {
             if key == "_widget_id" {
@@ -104,13 +121,32 @@ impl Config {
             tracing::warn!(field = key, "Unknown config field");
         }
 
+        // Merge defaults for colors
         for (key, value) in Self::default_colors() {
             self.colors.entry(key).or_insert(value);
         }
+
+        // Merge defaults for labels
         for (key, value) in Self::default_labels() {
             self.labels.entry(key).or_insert(value);
         }
-        self
+
+        Config {
+            work: self.work,
+            short_break: self.short_break,
+            long_break: self.long_break,
+            auto_start_work: self.auto_start_work,
+            auto_start_break: self.auto_start_break,
+            interval: self.interval,
+            padding: self.padding,
+            render_mode: self.render_mode,
+            fill_direction: self.fill_direction,
+            pulse_on_pause: self.pulse_on_pause,
+            sounds: self.sounds,
+            phases: self.phases,
+            labels: self.labels,
+            colors: self.colors,
+        }
     }
 }
 
@@ -119,8 +155,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_config_defaults() -> crate::error::Result<()> {
-        let cfg = Config::default();
+    fn test_config_builder_defaults() -> crate::error::Result<()> {
+        let cfg = ConfigBuilder::default().build();
         assert_eq!(cfg.work, 25);
         assert_eq!(cfg.short_break, 5);
         assert_eq!(cfg.long_break, 15);
@@ -148,7 +184,7 @@ work_bg = "#ff0000"
 [sounds]
 work = "bell.wav"
 "##;
-        let cfg: Config = toml::from_str::<Config>(toml_str).unwrap().with_defaults();
+        let cfg: Config = toml::from_str::<ConfigBuilder>(toml_str).unwrap().build();
         assert_eq!(cfg.work, 30);
         assert_eq!(cfg.short_break, 10);
         assert!(cfg.auto_start_work);
@@ -166,7 +202,7 @@ work = "bell.wav"
 work = 25
 colors = { fg = "#ffffff", work_bg = "#e57373" }
 "##;
-        let cfg: Config = toml::from_str::<Config>(toml_str).unwrap().with_defaults();
+        let cfg: Config = toml::from_str::<ConfigBuilder>(toml_str).unwrap().build();
         assert_eq!(cfg.work, 25);
         assert_eq!(cfg.colors.get("fg"), Some(&"#ffffff".to_string()));
         assert_eq!(cfg.colors.get("work_bg"), Some(&"#e57373".to_string()));
@@ -179,7 +215,7 @@ colors = { fg = "#ffffff", work_bg = "#e57373" }
 [colors]
 fg = "#000000"
 "##;
-        let cfg: Config = toml::from_str::<Config>(toml_str).unwrap().with_defaults();
+        let cfg: Config = toml::from_str::<ConfigBuilder>(toml_str).unwrap().build();
         // User-specified value should be preserved
         assert_eq!(cfg.colors.get("fg"), Some(&"#000000".to_string()));
         // Defaults should be filled in for unspecified keys
@@ -195,7 +231,7 @@ fg = "#000000"
 [labels]
 work = "WORK"
 "##;
-        let cfg: Config = toml::from_str::<Config>(toml_str).unwrap().with_defaults();
+        let cfg: Config = toml::from_str::<ConfigBuilder>(toml_str).unwrap().build();
         // User-specified value should be preserved
         assert_eq!(cfg.labels.get("work"), Some(&"WORK".to_string()));
         // Default should be filled in
@@ -210,12 +246,12 @@ work = 25
 unknown_field = "value"
 another_unknown = 42
 "##;
-        let cfg: Config = toml::from_str::<Config>(toml_str).unwrap();
-        // Unknown fields should be captured
-        assert!(cfg.unknown.contains_key("unknown_field"));
-        assert!(cfg.unknown.contains_key("another_unknown"));
+        let builder: ConfigBuilder = toml::from_str(toml_str).unwrap();
+        // Unknown fields should be captured in the builder
+        assert!(builder.unknown.contains_key("unknown_field"));
+        assert!(builder.unknown.contains_key("another_unknown"));
         // Known fields should still work
-        assert_eq!(cfg.work, 25);
+        assert_eq!(builder.work, 25);
         Ok(())
     }
 }

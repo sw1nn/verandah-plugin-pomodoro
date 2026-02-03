@@ -25,7 +25,7 @@ mod timer;
 
 use image::Rgba;
 
-use config::{Config, DEFAULT_INTERVAL_MS};
+use config::{Config, ConfigBuilder, DEFAULT_INTERVAL_MS};
 use render::{FillDirection, RenderMode};
 use socket::{Command, SocketListener};
 use timer::{Phase, Timer, Transition};
@@ -79,7 +79,7 @@ struct PomodoroWidget {
 
 impl PomodoroWidget {
     fn new() -> Self {
-        let cfg = Config::default();
+        let cfg = ConfigBuilder::default().build();
         PomodoroWidget {
             timer: Timer::new(&cfg),
             config: PluginConfig::new(),
@@ -137,8 +137,8 @@ impl WidgetPlugin for PomodoroWidget {
     fn init(&mut self, config: PluginConfig) -> PluginResult<()> {
         self.config = config.clone();
 
-        let cfg: Config = match parse_config::<Config>(&config) {
-            PluginResult::ROk(c) => c.with_defaults(),
+        let cfg: Config = match parse_config::<ConfigBuilder>(&config) {
+            PluginResult::ROk(builder) => builder.build(),
             PluginResult::RErr(e) => return PluginResult::RErr(e),
         };
 

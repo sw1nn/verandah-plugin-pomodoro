@@ -208,7 +208,7 @@ mod tests {
 
     #[test]
     fn test_command_apply_toggle() -> crate::error::Result<()> {
-        let config = crate::config::Config::default();
+        let config = crate::config::ConfigBuilder::default().build();
         let mut timer = Timer::new(&config);
 
         assert!(!timer.is_running());
@@ -221,7 +221,7 @@ mod tests {
 
     #[test]
     fn test_command_apply_start_stop() -> crate::error::Result<()> {
-        let config = crate::config::Config::default();
+        let config = crate::config::ConfigBuilder::default().build();
         let mut timer = Timer::new(&config);
 
         assert!(!timer.is_running());
