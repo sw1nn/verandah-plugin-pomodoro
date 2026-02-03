@@ -5,9 +5,32 @@ use ab_glyph::{Font, FontRef, PxScale, ScaleFont};
 use image::{Rgb, RgbImage, Rgba, RgbaImage};
 use imageproc::drawing::{draw_filled_rect_mut, draw_text_mut};
 use imageproc::rect::Rect;
+use strum::{AsRefStr, EnumString, VariantNames};
 use verandah_plugin_api::prelude::PluginImage;
 
 use crate::timer::{Phase, Timer};
+
+/// Render mode for the timer display
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, EnumString, AsRefStr, VariantNames)]
+#[strum(serialize_all = "snake_case")]
+pub enum RenderMode {
+    /// Traditional text-based display with time countdown
+    #[default]
+    Text,
+    /// Fill background from bottom to top (or vice versa) as progress indicator
+    FillingBucket,
+}
+
+/// Fill direction for filling-bucket mode
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, EnumString, AsRefStr, VariantNames)]
+#[strum(serialize_all = "snake_case")]
+pub enum FillDirection {
+    /// Fill from bottom to top (empty → full)
+    #[default]
+    EmptyToFull,
+    /// Drain from top to bottom (full → empty)
+    FullToEmpty,
+}
 
 static SYSTEM_FONT: OnceLock<Option<Vec<u8>>> = OnceLock::new();
 
@@ -38,11 +61,14 @@ pub fn render_button(
     work_bg: Rgba<u8>,
     break_bg: Rgba<u8>,
     paused_bg: Rgba<u8>,
+    empty_bg: Rgba<u8>,
     padding: f32,
     paused_icon: Option<&PluginImage>,
     fallback_text: Option<&str>,
     paused_text: &str,
     phases: &HashMap<String, String>,
+    render_mode: RenderMode,
+    fill_direction: FillDirection,
 ) -> RgbImage {
     // At phase boundary (elapsed=0) and not running: show icon or fallback
     if !timer.is_running() && timer.at_phase_boundary() {
@@ -54,6 +80,47 @@ pub fn render_button(
         }
     }
 
+    match render_mode {
+        RenderMode::Text => render_text_mode(
+            timer,
+            width,
+            height,
+            fg_color,
+            work_bg,
+            break_bg,
+            paused_bg,
+            padding,
+            paused_text,
+            phases,
+        ),
+        RenderMode::FillingBucket => render_filling_bucket_mode(
+            timer,
+            width,
+            height,
+            fg_color,
+            work_bg,
+            break_bg,
+            empty_bg,
+            phases,
+            fill_direction,
+        ),
+    }
+}
+
+/// Render traditional text-based timer display
+#[allow(clippy::too_many_arguments)]
+fn render_text_mode(
+    timer: &Timer,
+    width: u32,
+    height: u32,
+    fg_color: Rgba<u8>,
+    work_bg: Rgba<u8>,
+    break_bg: Rgba<u8>,
+    paused_bg: Rgba<u8>,
+    padding: f32,
+    paused_text: &str,
+    phases: &HashMap<String, String>,
+) -> RgbImage {
     let mut rgba = RgbaImage::new(width, height);
 
     // Determine background color based on state
@@ -94,6 +161,88 @@ pub fn render_button(
     draw_centered_text(&mut rgba, &time_text, fg_color, padding, 0.0);
 
     // Draw iteration progress dots (bottom)
+    draw_iteration_dots(&mut rgba, timer.iterations(), width, fg_color);
+
+    // Convert to RGB
+    RgbImage::from_fn(width, height, |x, y| {
+        let pixel = rgba.get_pixel(x, y);
+        Rgb([pixel[0], pixel[1], pixel[2]])
+    })
+}
+
+/// Render filling-bucket mode with progress fill
+#[allow(clippy::too_many_arguments)]
+fn render_filling_bucket_mode(
+    timer: &Timer,
+    width: u32,
+    height: u32,
+    fg_color: Rgba<u8>,
+    work_bg: Rgba<u8>,
+    break_bg: Rgba<u8>,
+    empty_bg: Rgba<u8>,
+    phases: &HashMap<String, String>,
+    fill_direction: FillDirection,
+) -> RgbImage {
+    let mut rgba = RgbaImage::new(width, height);
+
+    // Fill with empty_bg as the base/unfilled color
+    draw_filled_rect_mut(&mut rgba, Rect::at(0, 0).of_size(width, height), empty_bg);
+
+    // Determine the fill color based on current phase
+    let fill_color = if timer.phase().is_break() {
+        break_bg
+    } else {
+        work_bg
+    };
+
+    // Calculate progress and fill height
+    let progress = timer.progress_ratio();
+    let fill_height = (height as f32 * progress) as u32;
+
+    if fill_height > 0 {
+        match fill_direction {
+            FillDirection::EmptyToFull => {
+                // Fill from bottom to top
+                let y_start = height.saturating_sub(fill_height);
+                draw_filled_rect_mut(
+                    &mut rgba,
+                    Rect::at(0, y_start as i32).of_size(width, fill_height),
+                    fill_color,
+                );
+            }
+            FillDirection::FullToEmpty => {
+                // Fill from top, draining down (full - progress = remaining fill)
+                let remaining = 1.0 - progress;
+                let remaining_height = (height as f32 * remaining) as u32;
+                if remaining_height > 0 {
+                    draw_filled_rect_mut(
+                        &mut rgba,
+                        Rect::at(0, 0).of_size(width, remaining_height),
+                        fill_color,
+                    );
+                }
+            }
+        }
+    } else if matches!(fill_direction, FillDirection::FullToEmpty) {
+        // At start (progress=0), full_to_empty should show full fill
+        draw_filled_rect_mut(&mut rgba, Rect::at(0, 0).of_size(width, height), fill_color);
+    }
+
+    // Overlay phase indicator (top)
+    let phase_indicator = match timer.phase() {
+        Phase::Work => phases.get("work").map(|s| s.as_str()).unwrap_or("work"),
+        Phase::ShortBreak => phases
+            .get("short_break")
+            .map(|s| s.as_str())
+            .unwrap_or("short brk"),
+        Phase::LongBreak => phases
+            .get("long_break")
+            .map(|s| s.as_str())
+            .unwrap_or("long brk"),
+    };
+    draw_phase_indicator(&mut rgba, phase_indicator, fg_color, 0.0);
+
+    // Overlay iteration progress dots (bottom)
     draw_iteration_dots(&mut rgba, timer.iterations(), width, fg_color);
 
     // Convert to RGB

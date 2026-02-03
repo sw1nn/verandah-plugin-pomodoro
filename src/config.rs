@@ -7,6 +7,8 @@ pub const DEFAULT_SHORT_BREAK_MINS: u64 = 5;
 pub const DEFAULT_LONG_BREAK_MINS: u64 = 15;
 pub const DEFAULT_INTERVAL_MS: u64 = 1000;
 pub const DEFAULT_PADDING: f32 = 0.05;
+pub const DEFAULT_RENDER_MODE: &str = "text";
+pub const DEFAULT_FILL_DIRECTION: &str = "empty_to_full";
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
@@ -25,6 +27,10 @@ pub struct Config {
     pub interval: u64,
     /// Text padding as fraction of button size (0.0 to 0.4)
     pub padding: f32,
+    /// Render mode: "text" (default) or "filling_bucket"
+    pub render_mode: String,
+    /// Fill direction for filling_bucket mode: "empty_to_full" (default) or "full_to_empty"
+    pub fill_direction: String,
     /// Sound files to play on phase transitions (keys: work, break)
     #[serde(default)]
     pub sounds: HashMap<String, String>,
@@ -34,7 +40,8 @@ pub struct Config {
     /// Labels/fallback text (keys: work, short_break, long_break, paused)
     #[serde(default)]
     pub labels: HashMap<String, String>,
-    /// Colors (keys: fg, work_bg, break_bg, paused_bg) - format: #RRGGBB or #RGB
+    /// Colors (keys: fg, work_bg, break_bg, paused_bg, empty_bg) - format: #RRGGBB or #RGB
+    /// empty_bg is the unfilled background color in filling_bucket mode
     #[serde(default, alias = "colours")]
     pub colors: HashMap<String, String>,
 }
@@ -49,6 +56,8 @@ impl Default for Config {
             auto_start_break: false,
             interval: DEFAULT_INTERVAL_MS,
             padding: DEFAULT_PADDING,
+            render_mode: DEFAULT_RENDER_MODE.to_string(),
+            fill_direction: DEFAULT_FILL_DIRECTION.to_string(),
             sounds: HashMap::new(),
             phases: HashMap::new(),
             labels: Self::default_labels(),
@@ -64,6 +73,7 @@ impl Config {
         colors.insert("work_bg".to_string(), "#e57373".to_string()); // Soft coral
         colors.insert("break_bg".to_string(), "#81c784".to_string()); // Soft mint
         colors.insert("paused_bg".to_string(), "#7f8c8d".to_string()); // Gray
+        colors.insert("empty_bg".to_string(), "#2c3e50".to_string()); // Dark blue-gray
         colors
     }
 
@@ -102,6 +112,7 @@ mod tests {
         assert_eq!(cfg.colors.get("work_bg"), Some(&"#e57373".to_string()));
         assert_eq!(cfg.colors.get("break_bg"), Some(&"#81c784".to_string()));
         assert_eq!(cfg.colors.get("paused_bg"), Some(&"#7f8c8d".to_string()));
+        assert_eq!(cfg.colors.get("empty_bg"), Some(&"#2c3e50".to_string()));
         Ok(())
     }
 

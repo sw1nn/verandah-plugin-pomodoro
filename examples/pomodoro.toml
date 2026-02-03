@@ -30,22 +30,22 @@ shape = [3, 5]
 
 # Variant 1: With icons
 # When paused at phase boundary, displays the icon for current phase
-[[keys]]
-index = 2
-[keys.widget]
-id = "pomodoro"
-icons = { work = "pomodoro", short_break = "pomodoro-coffee", long_break = "pomodoro-beach-umbrella" }
-[keys.widget.config]
-work = 1
-short_break = 1
-long_break = 1
-interval = 1000
-colors = { fg = "#ecf0f1", work_bg = "#e57373", break_bg = "#81c784", paused_bg = "#34495e" }
-sounds = { work = "alarm-clock-elapsed", break = "complete" }
-phases = { work = "work", short_break = "short brk", long_break = "long brk" }
-labels = { work = "Work", short_break = "Short\nBreak", long_break = "Long\nBreak", paused = "\uf04c" }
-[keys.action]
-exec = "verandah-pomodoroctl toggle"
+# [[keys]]
+# index = 2
+# [keys.widget]
+# id = "pomodoro"
+# icons = { work = "pomodoro", short_break = "pomodoro-coffee", long_break = "pomodoro-beach-umbrella" }
+# [keys.widget.config]
+# work = 1
+# short_break = 1
+# long_break = 1
+# interval = 1000
+# colors = { fg = "#ecf0f1", work_bg = "#e57373", break_bg = "#81c784", paused_bg = "#34495e" }
+# sounds = { work = "alarm-clock-elapsed", break = "complete" }
+# phases = { work = "work", short_break = "short brk", long_break = "long brk" }
+# labels = { work = "Work", short_break = "Short\nBreak", long_break = "Long\nBreak", paused = "\uf04c" }
+# [keys.action]
+# exec = "verandah-pomodoroctl toggle"
 
 # Variant 2: Without icons
 # When paused at phase boundary, displays text fallback for current phase
@@ -65,6 +65,29 @@ exec = "verandah-pomodoroctl toggle"
 # [keys.action]
 # exec = "verandah-pomodoroctl toggle"
 
+# Variant 3: Filling-bucket mode
+# Displays progress as a fill from bottom to top (or top to bottom)
+# render_mode: "text" (default) or "filling_bucket"
+# fill_direction: "empty_to_full" (default, fills up) or "full_to_empty" (drains down)
+# empty_bg: background color for unfilled portion in filling_bucket mode
+[[keys]]
+index = 2
+[keys.widget]
+id = "pomodoro"
+icons = { work = "pomodoro", short_break = "pomodoro-coffee", long_break = "pomodoro-beach-umbrella" }
+[keys.widget.config]
+work = 25
+short_break = 1
+long_break = 15
+interval = 1000
+render_mode = "filling_bucket"
+fill_direction = "empty_to_full"
+colors = { fg = "#ecf0f1", work_bg = "#e57373", break_bg = "#81c784", paused_bg = "#34495e", empty_bg = "#2c3e50" }
+sounds = { work = "alarm-clock-elapsed", break = "complete" }
+phases = { work = "work", short_break = "short brk", long_break = "long brk" }
+[keys.action]
+exec = "verandah-pomodoroctl toggle"
+
 # Reset button
 [[keys]]
 index = 5
@@ -72,9 +95,9 @@ index = 5
 id = "clock"
 [keys.widget.config]
 format = "Reset"
-interval = "60000"
-fg_color = "ffffff"
-bg_color = "e74c3c" # Alizarin red
+interval = 60000
+fg_color = "#ffffff"
+bg_color = "#e74c3c" # Alizarin red
 [keys.action]
 exec = "verandah-pomodoroctl reset"
 
@@ -85,9 +108,9 @@ index = 7
 id = "clock"
 [keys.widget.config]
 format = "Skip"
-interval = "60000"
-fg_color = "ffffff"
-bg_color = "3498db" # Peter river blue
+interval = 60000
+fg_color = "#ffffff"
+bg_color = "#3498db" # Peter river blue
 [keys.action]
 exec = "verandah-pomodoroctl skip"
 
@@ -98,6 +121,6 @@ index = 4
 id = "clock"
 [keys.widget.config]
 format = "%H:%M"
-interval = "1000"
-fg_color = "ffffff"
-bg_color = "2c3e50" # Midnight blue
+interval = 1000
+fg_color = "#ffffff"
+bg_color = "#2c3e50" # Midnight blue

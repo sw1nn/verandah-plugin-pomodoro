@@ -26,6 +26,7 @@ mod timer;
 use image::Rgba;
 
 use config::{Config, DEFAULT_INTERVAL_MS};
+use render::{FillDirection, RenderMode};
 use socket::{Command, SocketListener};
 use timer::{Phase, Timer, Transition};
 
@@ -36,6 +37,7 @@ const DEFAULT_FG: Rgba<u8> = Rgba([255, 255, 255, 255]); // White
 const DEFAULT_WORK_BG: Rgba<u8> = Rgba([229, 115, 115, 255]); // Soft coral
 const DEFAULT_BREAK_BG: Rgba<u8> = Rgba([129, 199, 132, 255]); // Soft mint
 const DEFAULT_PAUSED_BG: Rgba<u8> = Rgba([127, 140, 141, 255]); // Gray
+const DEFAULT_EMPTY_BG: Rgba<u8> = Rgba([44, 62, 80, 255]); // Dark blue-gray
 
 fn parse_colors(colors: &HashMap<String, String>) -> HashMap<String, Rgba<u8>> {
     let mut parsed = HashMap::new();
@@ -61,6 +63,9 @@ struct PomodoroWidget {
     // Parsed colors (keys: fg, work_bg, break_bg, paused_bg)
     colors: HashMap<String, Rgba<u8>>,
     padding: f32,
+    // Render mode and fill direction
+    render_mode: RenderMode,
+    fill_direction: FillDirection,
     phases: HashMap<String, String>,
     // Labels/fallback text (keys: work, short_break, long_break, paused)
     labels: HashMap<String, String>,
@@ -81,6 +86,8 @@ impl PomodoroWidget {
             last_tick: None,
             colors: parse_colors(&cfg.colors),
             padding: cfg.padding,
+            render_mode: cfg.render_mode.parse().unwrap_or_default(),
+            fill_direction: cfg.fill_direction.parse().unwrap_or_default(),
             phases: cfg.phases,
             labels: cfg.labels,
             sounds: HashMap::new(),
@@ -137,6 +144,8 @@ impl WidgetPlugin for PomodoroWidget {
         self.interval = PluginDuration::from_millis(cfg.interval);
         self.colors = parse_colors(&cfg.colors);
         self.padding = cfg.padding.clamp(0.0, 0.4);
+        self.render_mode = cfg.render_mode.parse().unwrap_or_default();
+        self.fill_direction = cfg.fill_direction.parse().unwrap_or_default();
         self.phases = cfg.phases;
         self.labels = cfg.labels;
 
@@ -246,6 +255,7 @@ impl WidgetPlugin for PomodoroWidget {
             get_color(&self.colors, "work_bg", DEFAULT_WORK_BG),
             get_color(&self.colors, "break_bg", DEFAULT_BREAK_BG),
             get_color(&self.colors, "paused_bg", DEFAULT_PAUSED_BG),
+            get_color(&self.colors, "empty_bg", DEFAULT_EMPTY_BG),
             self.padding,
             icon,
             fallback_text,
@@ -254,6 +264,8 @@ impl WidgetPlugin for PomodoroWidget {
                 .map(|s| s.as_str())
                 .unwrap_or("PAUSED"),
             &self.phases,
+            self.render_mode,
+            self.fill_direction,
         );
 
         PluginResult::ROk(PluginImage::from_rgb(

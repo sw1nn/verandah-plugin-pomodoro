@@ -86,12 +86,26 @@ impl Timer {
     }
 
     /// Get the duration of the current phase in seconds
-    fn current_duration(&self) -> u64 {
+    pub fn current_duration(&self) -> u64 {
         match self.phase {
             Phase::Work => self.work_secs,
             Phase::ShortBreak => self.short_break_secs,
             Phase::LongBreak => self.long_break_secs,
         }
+    }
+
+    /// Get elapsed seconds in current phase
+    pub fn elapsed_secs(&self) -> u64 {
+        self.elapsed_secs
+    }
+
+    /// Get progress ratio (0.0 to 1.0) for current phase
+    pub fn progress_ratio(&self) -> f32 {
+        let duration = self.current_duration();
+        if duration == 0 {
+            return 0.0;
+        }
+        (self.elapsed_secs as f32 / duration as f32).clamp(0.0, 1.0)
     }
 
     /// Get remaining time in seconds

@@ -19,6 +19,7 @@ abi_stable = "0.11"
 serde = { version = "1", features = ["derive"] }
 tracing = "0.1"
 derive_more = { version = "2", features = ["from", "display"] }
+strum = { version = "0.27", features = ["derive"] }
 xdg = "2"
 clap = { version = "4", features = ["derive"] }
 
