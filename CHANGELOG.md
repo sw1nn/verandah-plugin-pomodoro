@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.7.0 - 2026-02-03
+#### Features
+- (**render**) add filling-bucket render mode with configurable fill direction - (989c17f) - Neale Swinnerton
+
+- - -
+
 ## v0.6.0 - 2026-02-02
 #### Refactoring
 - (**colors**) use standardized colors module from verandah clock plugin - (8de3163) - Neale Swinnerton
