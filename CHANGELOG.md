@@ -2,6 +2,17 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.10.0 - 2026-02-03
+#### Features
+- (**config**) add warning logs for unknown TOML fields - (b768ba1) - Neale Swinnerton
+- (**render**) overlay paused text on fill_icon and ripen modes - (988cda3) - Neale Swinnerton
+#### Bug Fixes
+- (**render**) add pulse and paused text support to fill_bg mode - (69cadf8) - Neale Swinnerton
+#### Refactoring
+- (**config**) convert Config to Builder pattern - (98e4437) - Neale Swinnerton
+
+- - -
+
 ## v0.9.0 - 2026-02-03
 #### Features
 - (**render**) add ripen mode with hue rotation effect - (d6084be) - Neale Swinnerton
