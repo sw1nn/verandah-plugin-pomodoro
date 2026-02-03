@@ -2,6 +2,16 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.9.0 - 2026-02-03
+#### Features
+- (**render**) add ripen mode with hue rotation effect - (d6084be) - Neale Swinnerton
+#### Performance Improvements
+- (**render**) optimize HSL conversion for ripen mode - (eac2c6f) - Neale Swinnerton
+#### Refactoring
+- (**render**) rename filling_bucket to fill_bg - (1bc0bdc) - Neale Swinnerton
+
+- - -
+
 ## v0.8.0 - 2026-02-03
 #### Features
 - (**render**) use greyscale for unfilled portion in fill_icon mode - (8cf8105) - Neale Swinnerton
