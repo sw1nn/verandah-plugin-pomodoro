@@ -120,8 +120,11 @@ pub fn render_button(
             phase_icon,
             phases,
             fill_direction,
+            paused_text,
         ),
-        RenderMode::Ripen => render_ripen_mode(timer, width, height, fg_color, phase_icon),
+        RenderMode::Ripen => {
+            render_ripen_mode(timer, width, height, fg_color, phase_icon, paused_text)
+        }
     }
 }
 
@@ -284,6 +287,7 @@ fn render_fill_icon_mode(
     phase_icon: Option<&PluginImage>,
     phases: &HashMap<String, String>,
     fill_direction: FillDirection,
+    paused_text: &str,
 ) -> RgbImage {
     let mut rgba = RgbaImage::new(width, height);
 
@@ -350,6 +354,11 @@ fn render_fill_icon_mode(
                 }
             }
         }
+    }
+
+    // Overlay paused text if not running
+    if !timer.is_running() {
+        draw_centered_text(&mut rgba, paused_text, fg_color, 0.1, 0.0);
     }
 
     // Overlay iteration progress dots (bottom)
@@ -616,6 +625,7 @@ fn render_ripen_mode(
     height: u32,
     fg_color: Rgba<u8>,
     phase_icon: Option<&PluginImage>,
+    paused_text: &str,
 ) -> RgbImage {
     let mut rgba = RgbaImage::new(width, height);
 
@@ -652,6 +662,11 @@ fn render_ripen_mode(
                 shift_hue_towards_green(pixel[0], pixel[1], pixel[2], unripe_factor);
             rgba.put_pixel(x, y, Rgba([new_r, new_g, new_b, 255]));
         }
+    }
+
+    // Overlay paused text if not running
+    if !timer.is_running() {
+        draw_centered_text(&mut rgba, paused_text, fg_color, 0.1, 0.0);
     }
 
     // Overlay iteration progress dots
