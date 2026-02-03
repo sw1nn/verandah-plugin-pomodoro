@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.11.0 - 2026-02-03
+#### Refactoring
+- use verandah-plugin-utils for shared functionality - (6101d58) - Neale Swinnerton
+
+- - -
+
 ## v0.10.0 - 2026-02-03
 #### Features
 - (**config**) add warning logs for unknown TOML fields - (b768ba1) - Neale Swinnerton
