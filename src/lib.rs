@@ -11,19 +11,17 @@ use std::sync::mpsc::Receiver;
 use std::time::Instant;
 
 use verandah_plugin_api::prelude::*;
+use verandah_plugin_utils::prelude::*;
 
 use std::path::PathBuf;
 
 pub mod cli;
-mod colors;
 mod config;
 mod error;
 mod render;
 pub mod socket;
 mod sound;
 mod timer;
-
-use image::Rgba;
 
 use config::{Config, ConfigBuilder, DEFAULT_INTERVAL_MS};
 use render::{FillDirection, RenderMode};
@@ -38,22 +36,6 @@ const DEFAULT_WORK_BG: Rgba<u8> = Rgba([229, 115, 115, 255]); // Soft coral
 const DEFAULT_BREAK_BG: Rgba<u8> = Rgba([129, 199, 132, 255]); // Soft mint
 const DEFAULT_PAUSED_BG: Rgba<u8> = Rgba([127, 140, 141, 255]); // Gray
 const DEFAULT_EMPTY_BG: Rgba<u8> = Rgba([44, 62, 80, 255]); // Dark blue-gray
-
-fn parse_colors(colors: &HashMap<String, String>) -> HashMap<String, Rgba<u8>> {
-    let mut parsed = HashMap::new();
-    for (key, value) in colors {
-        if let Some(rgba) = colors::lookup(value) {
-            parsed.insert(key.clone(), rgba);
-        } else {
-            tracing::warn!(key, value, "Invalid color format");
-        }
-    }
-    parsed
-}
-
-fn get_color(colors: &HashMap<String, Rgba<u8>>, key: &str, default: Rgba<u8>) -> Rgba<u8> {
-    colors.get(key).copied().unwrap_or(default)
-}
 
 struct PomodoroWidget {
     timer: Timer,
@@ -261,15 +243,15 @@ impl WidgetPlugin for PomodoroWidget {
         // Get icon and fallback text for phase boundary display
         let (paused_icon, fallback_text): (Option<&PluginImage>, Option<&str>) =
             if !self.timer.is_running() && self.timer.at_phase_boundary() {
-                let fallback =
-                    self.labels
-                        .get(icon_key)
-                        .map(|s| s.as_str())
-                        .unwrap_or(match phase {
-                            Phase::Work => "Work",
-                            Phase::ShortBreak => "Short\nBreak",
-                            Phase::LongBreak => "Long\nBreak",
-                        });
+                let fallback = self
+                    .labels
+                    .get(icon_key)
+                    .map(|s: &String| s.as_str())
+                    .unwrap_or(match phase {
+                        Phase::Work => "Work",
+                        Phase::ShortBreak => "Short\nBreak",
+                        Phase::LongBreak => "Long\nBreak",
+                    });
                 (phase_icon, Some(fallback))
             } else {
                 (None, None)
@@ -290,7 +272,7 @@ impl WidgetPlugin for PomodoroWidget {
             fallback_text,
             self.labels
                 .get("paused")
-                .map(|s| s.as_str())
+                .map(|s: &String| s.as_str())
                 .unwrap_or("PAUSED"),
             &self.phases,
             self.render_mode,

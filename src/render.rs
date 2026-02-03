@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::sync::OnceLock;
-use std::time::SystemTime;
 
 use ab_glyph::{Font, FontRef, PxScale, ScaleFont};
 use image::{Rgb, RgbImage, Rgba, RgbaImage};
@@ -8,6 +6,7 @@ use imageproc::drawing::{draw_filled_rect_mut, draw_text_mut};
 use imageproc::rect::Rect;
 use strum::{AsRefStr, EnumString, VariantNames};
 use verandah_plugin_api::prelude::PluginImage;
+use verandah_plugin_utils::prelude::*;
 
 use crate::timer::{Phase, Timer};
 
@@ -35,25 +34,6 @@ pub enum FillDirection {
     EmptyToFull,
     /// Drain from top to bottom (full → empty)
     FullToEmpty,
-}
-
-static SYSTEM_FONT: OnceLock<Option<Vec<u8>>> = OnceLock::new();
-
-fn get_system_monospace_font() -> Option<&'static Vec<u8>> {
-    SYSTEM_FONT.get_or_init(load_system_monospace_font).as_ref()
-}
-
-fn load_system_monospace_font() -> Option<Vec<u8>> {
-    use fontconfig::Fontconfig;
-
-    let fc = Fontconfig::new()?;
-    if let Some(font) = fc.find("monospace", None) {
-        let path = font.path.to_string_lossy();
-        if let Ok(bytes) = std::fs::read(&*path) {
-            return Some(bytes);
-        }
-    }
-    None
 }
 
 /// Render the pomodoro button image
@@ -190,7 +170,7 @@ fn render_text_mode(
     draw_phase_indicator(&mut rgba, phase_indicator, fg_color, padding);
 
     // Draw main time (center)
-    draw_centered_text(&mut rgba, &time_text, fg_color, padding, 0.0);
+    draw_centered_text_with_reserved(&mut rgba, &time_text, fg_color, padding, 18.0, 18.0, 0.0);
 
     // Draw iteration progress dots (bottom)
     draw_iteration_dots(&mut rgba, timer.iterations(), width, fg_color);
@@ -286,7 +266,7 @@ fn render_fill_bg_mode(
 
     // Overlay paused text if not running
     if !timer.is_running() {
-        draw_centered_text(&mut rgba, paused_text, fg_color, 0.1, 0.0);
+        draw_centered_text_with_reserved(&mut rgba, paused_text, fg_color, 0.1, 18.0, 18.0, 0.0);
     }
 
     // Convert to RGB
@@ -389,7 +369,7 @@ fn render_fill_icon_mode(
 
     // Overlay paused text if not running
     if !timer.is_running() {
-        draw_centered_text(&mut rgba, paused_text, fg_color, 0.1, 0.0);
+        draw_centered_text_with_reserved(&mut rgba, paused_text, fg_color, 0.1, 18.0, 18.0, 0.0);
     }
 
     // Overlay iteration progress dots (bottom)
@@ -530,52 +510,6 @@ fn draw_iteration_dots(rgba: &mut RgbaImage, iterations: u8, width: u32, fg_colo
     draw_text_mut(rgba, fg_color, x, y, scale, &font, &dots);
 }
 
-/// Draw centered time text
-fn draw_centered_text(
-    rgba: &mut RgbaImage,
-    text: &str,
-    fg_color: Rgba<u8>,
-    padding: f32,
-    y_offset: f32,
-) {
-    let Some(font_bytes) = get_system_monospace_font() else {
-        return;
-    };
-    let Ok(font) = FontRef::try_from_slice(font_bytes) else {
-        return;
-    };
-
-    let width = rgba.width();
-    let height = rgba.height();
-
-    // Reserve space for phase indicator (top) and dots (bottom)
-    let reserved_top = 18.0;
-    let reserved_bottom = 18.0;
-    let available_height = height as f32 - reserved_top - reserved_bottom;
-
-    // Calculate optimal scale
-    let content_fraction = 1.0 - (2.0 * padding);
-    let target_width = width as f32 * content_fraction;
-    let target_height = available_height * content_fraction;
-    let scale_value = find_optimal_scale(&font, &[text], target_width, target_height);
-    let scale = PxScale::from(scale_value);
-
-    let scaled_font = font.as_scaled(scale);
-    let line_height = scaled_font.height();
-
-    // Calculate text width
-    let text_width: f32 = text
-        .chars()
-        .map(|c| scaled_font.h_advance(font.glyph_id(c)))
-        .sum();
-
-    // Center horizontally and vertically in available space
-    let x = ((width as f32 - text_width) / 2.0).max(0.0) as i32;
-    let y = (reserved_top + (available_height - line_height) / 2.0 + y_offset) as i32;
-
-    draw_text_mut(rgba, fg_color, x, y, scale, &font, text);
-}
-
 /// Draw phase indicator at the top
 fn draw_phase_indicator(rgba: &mut RgbaImage, text: &str, fg_color: Rgba<u8>, _padding: f32) {
     let Some(font_bytes) = get_system_monospace_font() else {
@@ -599,76 +533,6 @@ fn draw_phase_indicator(rgba: &mut RgbaImage, text: &str, fg_color: Rgba<u8>, _p
     let y = 4; // 4px margin from top
 
     draw_text_mut(rgba, fg_color, x, y, scale, &font, text);
-}
-
-/// Calculate the width of a line of text using actual font metrics
-fn measure_text_width<F>(font: &F, text: &str) -> f32
-where
-    F: Font,
-{
-    let scaled = font.as_scaled(PxScale::from(1.0));
-    text.chars()
-        .map(|c| scaled.h_advance(font.glyph_id(c)))
-        .sum()
-}
-
-/// Find optimal font scale to fit text within target dimensions
-fn find_optimal_scale<F>(font: &F, lines: &[&str], target_width: f32, target_height: f32) -> f32
-where
-    F: Font,
-{
-    let num_lines = lines.len().max(1) as f32;
-
-    let max_line_width = lines
-        .iter()
-        .map(|line| measure_text_width(font, line))
-        .fold(0.0_f32, |a, b| a.max(b));
-
-    let scaled = font.as_scaled(PxScale::from(1.0));
-    let line_height = scaled.height();
-
-    let scale_for_width = if max_line_width > 0.0 {
-        target_width / max_line_width
-    } else {
-        target_height
-    };
-
-    let total_height_at_1 = num_lines * line_height;
-    let scale_for_height = if total_height_at_1 > 0.0 {
-        target_height / total_height_at_1
-    } else {
-        target_width
-    };
-
-    scale_for_width.min(scale_for_height).clamp(8.0, 96.0)
-}
-
-/// Convert RGB to greyscale using luminosity method
-fn to_greyscale(r: u8, g: u8, b: u8) -> u8 {
-    // Standard luminosity coefficients: 0.299*R + 0.587*G + 0.114*B
-    ((0.299 * r as f32) + (0.587 * g as f32) + (0.114 * b as f32)) as u8
-}
-
-/// Apply a slow brightness pulse to the image based on system time
-fn apply_brightness_pulse(rgba: &mut RgbaImage) {
-    // Use subsec portion for precision (f32 can't handle billions of seconds)
-    let now = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap_or_default();
-    // Use seconds mod 3 + subsec (3 is a multiple of 1.5, so sine wave aligns at wrap)
-    let secs = (now.as_secs() % 3) as f32 + now.subsec_nanos() as f32 / 1_000_000_000.0;
-
-    // Sine wave oscillating between 0.1 and 1.0 (dims to 10% at darkest)
-    // Divide by 1.5 for one cycle per 1.5 seconds
-    let pulse = (secs * std::f32::consts::TAU / 1.5).sin() * 0.45 + 0.55;
-
-    tracing::debug!(pulse, "apply_brightness_pulse");
-
-    for pixel in rgba.pixels_mut() {
-        pixel[0] = (pixel[0] as f32 * pulse) as u8;
-        pixel[1] = (pixel[1] as f32 * pulse) as u8;
-        pixel[2] = (pixel[2] as f32 * pulse) as u8;
-    }
 }
 
 /// Render ripen mode: icon starts green (unripe) and gradually returns to original colors
@@ -725,7 +589,7 @@ fn render_ripen_mode(
 
     // Overlay paused text if not running
     if !timer.is_running() {
-        draw_centered_text(&mut rgba, paused_text, fg_color, 0.1, 0.0);
+        draw_centered_text_with_reserved(&mut rgba, paused_text, fg_color, 0.1, 18.0, 18.0, 0.0);
     }
 
     // Overlay iteration progress dots

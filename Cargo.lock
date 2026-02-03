@@ -2329,7 +2329,6 @@ dependencies = [
  "clap",
  "clap_complete",
  "derive_more",
- "fontconfig",
  "image",
  "imageproc",
  "rodio",
@@ -2338,7 +2337,20 @@ dependencies = [
  "toml",
  "tracing",
  "verandah-plugin-api",
+ "verandah-plugin-utils",
  "xdg",
+]
+
+[[package]]
+name = "verandah-plugin-utils"
+version = "0.1.0"
+source = "git+ssh://gitea@git.sw1nn.net/sw1nn/verandah-plugin-utils.git?tag=v0.1.0#13465a4bafb37786a7b1403b85bf3395e1695a97"
+dependencies = [
+ "ab_glyph",
+ "fontconfig",
+ "image",
+ "imageproc",
+ "tracing",
 ]
 
 [[package]]
