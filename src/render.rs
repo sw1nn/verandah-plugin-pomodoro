@@ -21,6 +21,8 @@ pub enum RenderMode {
     FillingBucket,
     /// Fill an icon from bottom to top (or vice versa) as progress indicator
     FillIcon,
+    /// Icon starts green (unripe) and gradually returns to original colors as timer progresses
+    Ripen,
 }
 
 /// Fill direction for filling-bucket mode
@@ -119,6 +121,7 @@ pub fn render_button(
             phases,
             fill_direction,
         ),
+        RenderMode::Ripen => render_ripen_mode(timer, width, height, fg_color, phase_icon),
     }
 }
 
@@ -604,4 +607,168 @@ where
 fn to_greyscale(r: u8, g: u8, b: u8) -> u8 {
     // Standard luminosity coefficients: 0.299*R + 0.587*G + 0.114*B
     ((0.299 * r as f32) + (0.587 * g as f32) + (0.114 * b as f32)) as u8
+}
+
+/// Render ripen mode: icon starts green (unripe) and gradually returns to original colors
+fn render_ripen_mode(
+    timer: &Timer,
+    width: u32,
+    height: u32,
+    fg_color: Rgba<u8>,
+    phase_icon: Option<&PluginImage>,
+) -> RgbImage {
+    let mut rgba = RgbaImage::new(width, height);
+
+    // If no icon available, show a simple colored background
+    let Some(icon) = phase_icon else {
+        static WARNED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+        if !WARNED.swap(true, std::sync::atomic::Ordering::Relaxed) {
+            tracing::warn!("ripen mode configured but no icon available");
+        }
+        // Just show a green-ish background
+        let green_bg = Rgba([60, 120, 60, 255]);
+        draw_filled_rect_mut(&mut rgba, Rect::at(0, 0).of_size(width, height), green_bg);
+        draw_iteration_dots(&mut rgba, timer.iterations(), width, fg_color);
+        return RgbImage::from_fn(width, height, |x, y| {
+            let pixel = rgba.get_pixel(x, y);
+            Rgb([pixel[0], pixel[1], pixel[2]])
+        });
+    };
+
+    // Render the icon
+    let icon_rgb = render_icon(icon, width, height);
+
+    // Calculate how "unripe" the icon should be (1.0 = fully green, 0.0 = original)
+    // At start (progress=0), we want full green effect
+    // At end (progress=1), we want original colors
+    let progress = timer.progress_ratio();
+    let unripe_factor = 1.0 - progress;
+
+    // Apply hue shift towards green for each pixel
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = icon_rgb.get_pixel(x, y);
+            let (new_r, new_g, new_b) =
+                shift_hue_towards_green(pixel[0], pixel[1], pixel[2], unripe_factor);
+            rgba.put_pixel(x, y, Rgba([new_r, new_g, new_b, 255]));
+        }
+    }
+
+    // Overlay iteration progress dots
+    draw_iteration_dots(&mut rgba, timer.iterations(), width, fg_color);
+
+    RgbImage::from_fn(width, height, |x, y| {
+        let pixel = rgba.get_pixel(x, y);
+        Rgb([pixel[0], pixel[1], pixel[2]])
+    })
+}
+
+/// Shift a pixel's hue towards green (120°) by the given factor (0.0 = no shift, 1.0 = full shift)
+fn shift_hue_towards_green(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u8) {
+    if factor <= 0.0 {
+        return (r, g, b);
+    }
+
+    let (h, s, l) = rgb_to_hsl(r, g, b);
+
+    // Target hue is green (120°)
+    const GREEN_HUE: f32 = 120.0;
+
+    // Calculate shortest path to green on the hue circle
+    let mut diff = GREEN_HUE - h;
+    if diff > 180.0 {
+        diff -= 360.0;
+    } else if diff < -180.0 {
+        diff += 360.0;
+    }
+
+    // Shift hue towards green
+    let new_h = (h + diff * factor).rem_euclid(360.0);
+
+    hsl_to_rgb(new_h, s, l)
+}
+
+/// Convert RGB (0-255) to HSL (H: 0-360, S: 0-1, L: 0-1)
+fn rgb_to_hsl(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
+    let r = r as f32 / 255.0;
+    let g = g as f32 / 255.0;
+    let b = b as f32 / 255.0;
+
+    let max = r.max(g).max(b);
+    let min = r.min(g).min(b);
+    let l = (max + min) / 2.0;
+
+    if (max - min).abs() < f32::EPSILON {
+        // Achromatic (grey)
+        return (0.0, 0.0, l);
+    }
+
+    let d = max - min;
+    let s = if l > 0.5 {
+        d / (2.0 - max - min)
+    } else {
+        d / (max + min)
+    };
+
+    let h = if (max - r).abs() < f32::EPSILON {
+        let mut h = (g - b) / d;
+        if g < b {
+            h += 6.0;
+        }
+        h * 60.0
+    } else if (max - g).abs() < f32::EPSILON {
+        ((b - r) / d + 2.0) * 60.0
+    } else {
+        ((r - g) / d + 4.0) * 60.0
+    };
+
+    (h, s, l)
+}
+
+/// Convert HSL (H: 0-360, S: 0-1, L: 0-1) to RGB (0-255)
+fn hsl_to_rgb(h: f32, s: f32, l: f32) -> (u8, u8, u8) {
+    if s.abs() < f32::EPSILON {
+        // Achromatic (grey)
+        let v = (l * 255.0) as u8;
+        return (v, v, v);
+    }
+
+    let q = if l < 0.5 {
+        l * (1.0 + s)
+    } else {
+        l + s - l * s
+    };
+    let p = 2.0 * l - q;
+
+    let h = h / 360.0; // Normalize to 0-1
+
+    let r = hue_to_rgb(p, q, h + 1.0 / 3.0);
+    let g = hue_to_rgb(p, q, h);
+    let b = hue_to_rgb(p, q, h - 1.0 / 3.0);
+
+    (
+        (r * 255.0).round() as u8,
+        (g * 255.0).round() as u8,
+        (b * 255.0).round() as u8,
+    )
+}
+
+/// Helper for HSL to RGB conversion
+fn hue_to_rgb(p: f32, q: f32, mut t: f32) -> f32 {
+    if t < 0.0 {
+        t += 1.0;
+    }
+    if t > 1.0 {
+        t -= 1.0;
+    }
+
+    if t < 1.0 / 6.0 {
+        p + (q - p) * 6.0 * t
+    } else if t < 1.0 / 2.0 {
+        q
+    } else if t < 2.0 / 3.0 {
+        p + (q - p) * (2.0 / 3.0 - t) * 6.0
+    } else {
+        p
+    }
 }
