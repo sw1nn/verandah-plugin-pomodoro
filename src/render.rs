@@ -19,6 +19,8 @@ pub enum RenderMode {
     Text,
     /// Fill background from bottom to top (or vice versa) as progress indicator
     FillingBucket,
+    /// Fill an icon from bottom to top (or vice versa) as progress indicator
+    FillIcon,
 }
 
 /// Fill direction for filling-bucket mode
@@ -64,6 +66,7 @@ pub fn render_button(
     empty_bg: Rgba<u8>,
     padding: f32,
     paused_icon: Option<&PluginImage>,
+    phase_icon: Option<&PluginImage>,
     fallback_text: Option<&str>,
     paused_text: &str,
     phases: &HashMap<String, String>,
@@ -101,6 +104,18 @@ pub fn render_button(
             work_bg,
             break_bg,
             empty_bg,
+            phases,
+            fill_direction,
+        ),
+        RenderMode::FillIcon => render_fill_icon_mode(
+            timer,
+            width,
+            height,
+            fg_color,
+            work_bg,
+            break_bg,
+            empty_bg,
+            phase_icon,
             phases,
             fill_direction,
         ),
@@ -241,6 +256,96 @@ fn render_filling_bucket_mode(
             .unwrap_or("long brk"),
     };
     draw_phase_indicator(&mut rgba, phase_indicator, fg_color, 0.0);
+
+    // Overlay iteration progress dots (bottom)
+    draw_iteration_dots(&mut rgba, timer.iterations(), width, fg_color);
+
+    // Convert to RGB
+    RgbImage::from_fn(width, height, |x, y| {
+        let pixel = rgba.get_pixel(x, y);
+        Rgb([pixel[0], pixel[1], pixel[2]])
+    })
+}
+
+/// Render fill-icon mode: fills an icon from bottom to top (or vice versa)
+/// Falls back to a simple progress bar if no icon is available
+#[allow(clippy::too_many_arguments)]
+fn render_fill_icon_mode(
+    timer: &Timer,
+    width: u32,
+    height: u32,
+    fg_color: Rgba<u8>,
+    work_bg: Rgba<u8>,
+    break_bg: Rgba<u8>,
+    empty_bg: Rgba<u8>,
+    phase_icon: Option<&PluginImage>,
+    phases: &HashMap<String, String>,
+    fill_direction: FillDirection,
+) -> RgbImage {
+    let mut rgba = RgbaImage::new(width, height);
+
+    // If no icon available, fall back to filling_bucket mode
+    let Some(icon) = phase_icon else {
+        static WARNED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+        if !WARNED.swap(true, std::sync::atomic::Ordering::Relaxed) {
+            tracing::warn!(
+                "fill_icon mode configured but no icon available, falling back to filling_bucket"
+            );
+        }
+        return render_filling_bucket_mode(
+            timer,
+            width,
+            height,
+            fg_color,
+            work_bg,
+            break_bg,
+            empty_bg,
+            phases,
+            fill_direction,
+        );
+    };
+
+    // First, render the full icon
+    let icon_rgb = render_icon(icon, width, height);
+
+    // Copy icon to rgba buffer
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = icon_rgb.get_pixel(x, y);
+            rgba.put_pixel(x, y, Rgba([pixel[0], pixel[1], pixel[2], 255]));
+        }
+    }
+
+    // Calculate progress and mask height
+    let progress = timer.progress_ratio();
+
+    // Draw empty_bg over the unfilled portion
+    match fill_direction {
+        FillDirection::EmptyToFull => {
+            // Mask from top down to (height - fill_height)
+            let fill_height = (height as f32 * progress) as u32;
+            let mask_height = height.saturating_sub(fill_height);
+            if mask_height > 0 {
+                draw_filled_rect_mut(
+                    &mut rgba,
+                    Rect::at(0, 0).of_size(width, mask_height),
+                    empty_bg,
+                );
+            }
+        }
+        FillDirection::FullToEmpty => {
+            // Mask from bottom up by progress amount
+            let mask_height = (height as f32 * progress) as u32;
+            if mask_height > 0 {
+                let y_start = height.saturating_sub(mask_height);
+                draw_filled_rect_mut(
+                    &mut rgba,
+                    Rect::at(0, y_start as i32).of_size(width, mask_height),
+                    empty_bg,
+                );
+            }
+        }
+    }
 
     // Overlay iteration progress dots (bottom)
     draw_iteration_dots(&mut rgba, timer.iterations(), width, fg_color);

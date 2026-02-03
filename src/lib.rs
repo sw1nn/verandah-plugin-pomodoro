@@ -224,15 +224,19 @@ impl WidgetPlugin for PomodoroWidget {
         _state: &PluginWidgetState,
         image_size: PluginImageSize,
     ) -> PluginResult<PluginImage> {
+        let phase = self.timer.phase();
+        let icon_key = match phase {
+            Phase::Work => "work",
+            Phase::ShortBreak => "short_break",
+            Phase::LongBreak => "long_break",
+        };
+
+        // Get phase icon (used for fill_icon mode and paused display)
+        let phase_icon = images.get(&RString::from(icon_key));
+
         // Get icon and fallback text for phase boundary display
-        let (icon, fallback_text): (Option<&PluginImage>, Option<&str>) =
+        let (paused_icon, fallback_text): (Option<&PluginImage>, Option<&str>) =
             if !self.timer.is_running() && self.timer.at_phase_boundary() {
-                let phase = self.timer.phase();
-                let icon_key = match phase {
-                    Phase::Work => "work",
-                    Phase::ShortBreak => "short_break",
-                    Phase::LongBreak => "long_break",
-                };
                 let fallback =
                     self.labels
                         .get(icon_key)
@@ -242,7 +246,7 @@ impl WidgetPlugin for PomodoroWidget {
                             Phase::ShortBreak => "Short\nBreak",
                             Phase::LongBreak => "Long\nBreak",
                         });
-                (images.get(&RString::from(icon_key)), Some(fallback))
+                (phase_icon, Some(fallback))
             } else {
                 (None, None)
             };
@@ -257,7 +261,8 @@ impl WidgetPlugin for PomodoroWidget {
             get_color(&self.colors, "paused_bg", DEFAULT_PAUSED_BG),
             get_color(&self.colors, "empty_bg", DEFAULT_EMPTY_BG),
             self.padding,
-            icon,
+            paused_icon,
+            phase_icon,
             fallback_text,
             self.labels
                 .get("paused")

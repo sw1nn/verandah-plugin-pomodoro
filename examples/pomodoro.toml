@@ -39,7 +39,6 @@ shape = [3, 5]
 # work = 1
 # short_break = 1
 # long_break = 1
-# interval = 1000
 # colors = { fg = "#ecf0f1", work_bg = "#e57373", break_bg = "#81c784", paused_bg = "#34495e" }
 # sounds = { work = "alarm-clock-elapsed", break = "complete" }
 # phases = { work = "work", short_break = "short brk", long_break = "long brk" }
@@ -57,7 +56,6 @@ shape = [3, 5]
 # work = 1
 # short_break = 1
 # long_break = 1
-# interval = 1000
 # colors = { fg = "#ecf0f1", work_bg = "#e57373", break_bg = "#81c784", paused_bg = "#34495e" }
 # sounds = { work = "alarm-clock-elapsed", break = "complete" }
 # phases = { work = "W", short_break = "SB", long_break = "LB" }
@@ -67,24 +65,42 @@ shape = [3, 5]
 
 # Variant 3: Filling-bucket mode
 # Displays progress as a fill from bottom to top (or top to bottom)
-# render_mode: "text" (default) or "filling_bucket"
+# render_mode: "text" (default), "filling_bucket", or "fill_icon"
 # fill_direction: "empty_to_full" (default, fills up) or "full_to_empty" (drains down)
-# empty_bg: background color for unfilled portion in filling_bucket mode
+# empty_bg: background color for unfilled portion
+# [[keys]]
+# index = 2
+# [keys.widget]
+# id = "pomodoro"
+# icons = { work = "pomodoro", short_break = "pomodoro-coffee", long_break = "pomodoro-beach-umbrella" }
+# [keys.widget.config]
+# work = 1
+# short_break = 5
+# long_break = 1
+# render_mode = "filling_bucket"
+# fill_direction = "empty_to_full"
+# colors = { fg = "#ecf0f1", work_bg = "#e57373", break_bg = "#81c784", paused_bg = "#34495e", empty_bg = "#2c3e50" }
+# sounds = { work = "alarm-clock-elapsed", break = "complete" }
+# phases = { work = "work", short_break = "short brk", long_break = "long brk" }
+# [keys.action]
+# exec = "verandah-pomodoroctl toggle"
+
+# Variant 4: Fill-icon mode
+# Fills the phase icon from bottom to top as progress indicator
+# Requires icons to be configured; falls back to filling_bucket if no icon available
 [[keys]]
 index = 2
 [keys.widget]
 id = "pomodoro"
 icons = { work = "pomodoro", short_break = "pomodoro-coffee", long_break = "pomodoro-beach-umbrella" }
 [keys.widget.config]
-work = 25
+work = 1
 short_break = 1
-long_break = 15
-interval = 1000
-render_mode = "filling_bucket"
+long_break = 1
+render_mode = "fill_icon"
 fill_direction = "empty_to_full"
-colors = { fg = "#ecf0f1", work_bg = "#e57373", break_bg = "#81c784", paused_bg = "#34495e", empty_bg = "#2c3e50" }
+colors = { fg = "#ecf0f1", paused_bg = "#34495e", empty_bg = "#000000" }
 sounds = { work = "alarm-clock-elapsed", break = "complete" }
-phases = { work = "work", short_break = "short brk", long_break = "long brk" }
 [keys.action]
 exec = "verandah-pomodoroctl toggle"
 
