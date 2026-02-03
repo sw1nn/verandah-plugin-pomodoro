@@ -316,33 +316,35 @@ fn render_fill_icon_mode(
         }
     }
 
-    // Calculate progress and mask height
+    // Calculate progress
     let progress = timer.progress_ratio();
 
-    // Draw empty_bg over the unfilled portion
+    // Convert unfilled portion to greyscale
     match fill_direction {
         FillDirection::EmptyToFull => {
-            // Mask from top down to (height - fill_height)
+            // Greyscale from top down to (height - fill_height)
             let fill_height = (height as f32 * progress) as u32;
             let mask_height = height.saturating_sub(fill_height);
-            if mask_height > 0 {
-                draw_filled_rect_mut(
-                    &mut rgba,
-                    Rect::at(0, 0).of_size(width, mask_height),
-                    empty_bg,
-                );
+            for y in 0..mask_height {
+                for x in 0..width {
+                    let pixel = rgba.get_pixel(x, y);
+                    let grey = to_greyscale(pixel[0], pixel[1], pixel[2]);
+                    rgba.put_pixel(x, y, Rgba([grey, grey, grey, pixel[3]]));
+                }
             }
         }
         FillDirection::FullToEmpty => {
-            // Mask from bottom up by progress amount
+            // Greyscale from bottom up by progress amount
             let mask_height = (height as f32 * progress) as u32;
             if mask_height > 0 {
                 let y_start = height.saturating_sub(mask_height);
-                draw_filled_rect_mut(
-                    &mut rgba,
-                    Rect::at(0, y_start as i32).of_size(width, mask_height),
-                    empty_bg,
-                );
+                for y in y_start..height {
+                    for x in 0..width {
+                        let pixel = rgba.get_pixel(x, y);
+                        let grey = to_greyscale(pixel[0], pixel[1], pixel[2]);
+                        rgba.put_pixel(x, y, Rgba([grey, grey, grey, pixel[3]]));
+                    }
+                }
             }
         }
     }
@@ -596,4 +598,10 @@ where
     };
 
     scale_for_width.min(scale_for_height).clamp(8.0, 96.0)
+}
+
+/// Convert RGB to greyscale using luminosity method
+fn to_greyscale(r: u8, g: u8, b: u8) -> u8 {
+    // Standard luminosity coefficients: 0.299*R + 0.587*G + 0.114*B
+    ((0.299 * r as f32) + (0.587 * g as f32) + (0.114 * b as f32)) as u8
 }
