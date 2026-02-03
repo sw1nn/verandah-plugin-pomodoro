@@ -27,9 +27,9 @@ pub struct Config {
     pub interval: u64,
     /// Text padding as fraction of button size (0.0 to 0.4)
     pub padding: f32,
-    /// Render mode: "text" (default) or "filling_bucket"
+    /// Render mode: "text" (default) or "fill_bg"
     pub render_mode: String,
-    /// Fill direction for filling_bucket mode: "empty_to_full" (default) or "full_to_empty"
+    /// Fill direction for fill_bg mode: "empty_to_full" (default) or "full_to_empty"
     pub fill_direction: String,
     /// Sound files to play on phase transitions (keys: work, break)
     #[serde(default)]
@@ -41,7 +41,7 @@ pub struct Config {
     #[serde(default)]
     pub labels: HashMap<String, String>,
     /// Colors (keys: fg, work_bg, break_bg, paused_bg, empty_bg) - format: #RRGGBB or #RGB
-    /// empty_bg is the unfilled background color in filling_bucket mode
+    /// empty_bg is the unfilled background color in fill_bg mode
     #[serde(default, alias = "colours")]
     pub colors: HashMap<String, String>,
 }

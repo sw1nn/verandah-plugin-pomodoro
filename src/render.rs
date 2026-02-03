@@ -18,14 +18,14 @@ pub enum RenderMode {
     #[default]
     Text,
     /// Fill background from bottom to top (or vice versa) as progress indicator
-    FillingBucket,
+    FillBg,
     /// Fill an icon from bottom to top (or vice versa) as progress indicator
     FillIcon,
     /// Icon starts green (unripe) and gradually returns to original colors as timer progresses
     Ripen,
 }
 
-/// Fill direction for filling-bucket mode
+/// Fill direction for fill modes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, EnumString, AsRefStr, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub enum FillDirection {
@@ -98,7 +98,7 @@ pub fn render_button(
             paused_text,
             phases,
         ),
-        RenderMode::FillingBucket => render_filling_bucket_mode(
+        RenderMode::FillBg => render_fill_bg_mode(
             timer,
             width,
             height,
@@ -190,7 +190,7 @@ fn render_text_mode(
 
 /// Render filling-bucket mode with progress fill
 #[allow(clippy::too_many_arguments)]
-fn render_filling_bucket_mode(
+fn render_fill_bg_mode(
     timer: &Timer,
     width: u32,
     height: u32,
@@ -287,15 +287,15 @@ fn render_fill_icon_mode(
 ) -> RgbImage {
     let mut rgba = RgbaImage::new(width, height);
 
-    // If no icon available, fall back to filling_bucket mode
+    // If no icon available, fall back to fill_bg mode
     let Some(icon) = phase_icon else {
         static WARNED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
         if !WARNED.swap(true, std::sync::atomic::Ordering::Relaxed) {
             tracing::warn!(
-                "fill_icon mode configured but no icon available, falling back to filling_bucket"
+                "fill_icon mode configured but no icon available, falling back to fill_bg"
             );
         }
-        return render_filling_bucket_mode(
+        return render_fill_bg_mode(
             timer,
             width,
             height,

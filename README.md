@@ -44,7 +44,7 @@ The `render_mode` option controls how the timer is displayed:
 
 Traditional text-based display showing the countdown timer with phase indicator and iteration dots.
 
-#### `filling_bucket`
+#### `fill_bg`
 
 Displays progress as a fill from bottom to top (or top to bottom). The background fills with the phase color as time progresses.
 
@@ -59,7 +59,7 @@ Fills the phase icon from bottom to top as a progress indicator. The unfilled po
 Options:
 - `fill_direction`: `"empty_to_full"` (default) or `"full_to_empty"`
 
-Requires icons to be configured. Falls back to `filling_bucket` if no icon is available.
+Requires icons to be configured. Falls back to `fill_bg` if no icon is available.
 
 #### `ripen`
 
