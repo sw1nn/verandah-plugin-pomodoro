@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::OnceLock;
+use std::time::SystemTime;
 
 use ab_glyph::{Font, FontRef, PxScale, ScaleFont};
 use image::{Rgb, RgbImage, Rgba, RgbaImage};
@@ -74,6 +75,7 @@ pub fn render_button(
     phases: &HashMap<String, String>,
     render_mode: RenderMode,
     fill_direction: FillDirection,
+    pulse_on_pause: bool,
 ) -> RgbImage {
     // At phase boundary (elapsed=0) and not running: show icon or fallback
     if !timer.is_running() && timer.at_phase_boundary() {
@@ -108,6 +110,8 @@ pub fn render_button(
             empty_bg,
             phases,
             fill_direction,
+            paused_text,
+            pulse_on_pause,
         ),
         RenderMode::FillIcon => render_fill_icon_mode(
             timer,
@@ -121,10 +125,17 @@ pub fn render_button(
             phases,
             fill_direction,
             paused_text,
+            pulse_on_pause,
         ),
-        RenderMode::Ripen => {
-            render_ripen_mode(timer, width, height, fg_color, phase_icon, paused_text)
-        }
+        RenderMode::Ripen => render_ripen_mode(
+            timer,
+            width,
+            height,
+            fg_color,
+            phase_icon,
+            paused_text,
+            pulse_on_pause,
+        ),
     }
 }
 
@@ -203,6 +214,8 @@ fn render_fill_bg_mode(
     empty_bg: Rgba<u8>,
     phases: &HashMap<String, String>,
     fill_direction: FillDirection,
+    paused_text: &str,
+    pulse_on_pause: bool,
 ) -> RgbImage {
     let mut rgba = RgbaImage::new(width, height);
 
@@ -266,6 +279,16 @@ fn render_fill_bg_mode(
     // Overlay iteration progress dots (bottom)
     draw_iteration_dots(&mut rgba, timer.iterations(), width, fg_color);
 
+    // Apply brightness pulse if paused and enabled
+    if !timer.is_running() && pulse_on_pause {
+        apply_brightness_pulse(&mut rgba);
+    }
+
+    // Overlay paused text if not running
+    if !timer.is_running() {
+        draw_centered_text(&mut rgba, paused_text, fg_color, 0.1, 0.0);
+    }
+
     // Convert to RGB
     RgbImage::from_fn(width, height, |x, y| {
         let pixel = rgba.get_pixel(x, y);
@@ -288,6 +311,7 @@ fn render_fill_icon_mode(
     phases: &HashMap<String, String>,
     fill_direction: FillDirection,
     paused_text: &str,
+    pulse_on_pause: bool,
 ) -> RgbImage {
     let mut rgba = RgbaImage::new(width, height);
 
@@ -309,6 +333,8 @@ fn render_fill_icon_mode(
             empty_bg,
             phases,
             fill_direction,
+            paused_text,
+            pulse_on_pause,
         );
     };
 
@@ -354,6 +380,11 @@ fn render_fill_icon_mode(
                 }
             }
         }
+    }
+
+    // Apply brightness pulse if paused and enabled
+    if !timer.is_running() && pulse_on_pause {
+        apply_brightness_pulse(&mut rgba);
     }
 
     // Overlay paused text if not running
@@ -618,6 +649,28 @@ fn to_greyscale(r: u8, g: u8, b: u8) -> u8 {
     ((0.299 * r as f32) + (0.587 * g as f32) + (0.114 * b as f32)) as u8
 }
 
+/// Apply a slow brightness pulse to the image based on system time
+fn apply_brightness_pulse(rgba: &mut RgbaImage) {
+    // Use subsec portion for precision (f32 can't handle billions of seconds)
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or_default();
+    // Use seconds mod 3 + subsec (3 is a multiple of 1.5, so sine wave aligns at wrap)
+    let secs = (now.as_secs() % 3) as f32 + now.subsec_nanos() as f32 / 1_000_000_000.0;
+
+    // Sine wave oscillating between 0.1 and 1.0 (dims to 10% at darkest)
+    // Divide by 1.5 for one cycle per 1.5 seconds
+    let pulse = (secs * std::f32::consts::TAU / 1.5).sin() * 0.45 + 0.55;
+
+    tracing::debug!(pulse, "apply_brightness_pulse");
+
+    for pixel in rgba.pixels_mut() {
+        pixel[0] = (pixel[0] as f32 * pulse) as u8;
+        pixel[1] = (pixel[1] as f32 * pulse) as u8;
+        pixel[2] = (pixel[2] as f32 * pulse) as u8;
+    }
+}
+
 /// Render ripen mode: icon starts green (unripe) and gradually returns to original colors
 fn render_ripen_mode(
     timer: &Timer,
@@ -626,6 +679,7 @@ fn render_ripen_mode(
     fg_color: Rgba<u8>,
     phase_icon: Option<&PluginImage>,
     paused_text: &str,
+    pulse_on_pause: bool,
 ) -> RgbImage {
     let mut rgba = RgbaImage::new(width, height);
 
@@ -662,6 +716,11 @@ fn render_ripen_mode(
                 shift_hue_towards_green(pixel[0], pixel[1], pixel[2], unripe_factor);
             rgba.put_pixel(x, y, Rgba([new_r, new_g, new_b, 255]));
         }
+    }
+
+    // Apply brightness pulse if paused and enabled
+    if !timer.is_running() && pulse_on_pause {
+        apply_brightness_pulse(&mut rgba);
     }
 
     // Overlay paused text if not running

@@ -66,6 +66,7 @@ struct PomodoroWidget {
     // Render mode and fill direction
     render_mode: RenderMode,
     fill_direction: FillDirection,
+    pulse_on_pause: bool,
     phases: HashMap<String, String>,
     // Labels/fallback text (keys: work, short_break, long_break, paused)
     labels: HashMap<String, String>,
@@ -88,6 +89,7 @@ impl PomodoroWidget {
             padding: cfg.padding,
             render_mode: cfg.render_mode.parse().unwrap_or_default(),
             fill_direction: cfg.fill_direction.parse().unwrap_or_default(),
+            pulse_on_pause: cfg.pulse_on_pause,
             phases: cfg.phases,
             labels: cfg.labels,
             sounds: HashMap::new(),
@@ -146,6 +148,7 @@ impl WidgetPlugin for PomodoroWidget {
         self.padding = cfg.padding.clamp(0.0, 0.4);
         self.render_mode = cfg.render_mode.parse().unwrap_or_default();
         self.fill_direction = cfg.fill_direction.parse().unwrap_or_default();
+        self.pulse_on_pause = cfg.pulse_on_pause;
         self.phases = cfg.phases;
         self.labels = cfg.labels;
 
@@ -175,7 +178,7 @@ impl WidgetPlugin for PomodoroWidget {
         self.config.clone()
     }
 
-    fn poll_state(&mut self) -> PluginResult<PluginWidgetState> {
+    fn poll_state(&mut self) -> PluginResult<PluginPollResponse> {
         // Process any pending commands from socket
         self.process_commands();
 
@@ -215,7 +218,28 @@ impl WidgetPlugin for PomodoroWidget {
             self.timer.remaining_formatted(),
             if self.timer.is_running() { "R" } else { "P" }
         );
-        PluginResult::ROk(PluginWidgetState::Text(text.into()))
+        let state = PluginWidgetState::Text(text.into());
+
+        // Use fast interval for smooth pulse animation when paused
+        let should_pulse =
+            self.pulse_on_pause && !self.timer.is_running() && !self.timer.at_phase_boundary();
+
+        tracing::debug!(
+            pulse_on_pause = self.pulse_on_pause,
+            is_running = self.timer.is_running(),
+            at_phase_boundary = self.timer.at_phase_boundary(),
+            should_pulse,
+            "poll_state"
+        );
+
+        if should_pulse {
+            PluginResult::ROk(PluginPollResponse::with_interval(
+                state,
+                PluginDuration::from_millis(100),
+            ))
+        } else {
+            PluginResult::ROk(PluginPollResponse::state(state))
+        }
     }
 
     fn render(
@@ -271,6 +295,7 @@ impl WidgetPlugin for PomodoroWidget {
             &self.phases,
             self.render_mode,
             self.fill_direction,
+            self.pulse_on_pause,
         );
 
         PluginResult::ROk(PluginImage::from_rgb(
