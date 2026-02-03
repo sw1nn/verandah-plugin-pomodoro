@@ -664,111 +664,75 @@ fn render_ripen_mode(
 }
 
 /// Shift a pixel's hue towards green (120°) by the given factor (0.0 = no shift, 1.0 = full shift)
+#[inline(always)]
 fn shift_hue_towards_green(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u8) {
-    if factor <= 0.0 {
-        return (r, g, b);
-    }
-
-    let (h, s, l) = rgb_to_hsl(r, g, b);
-
-    // Target hue is green (120°)
+    const INV_255: f32 = 1.0 / 255.0;
     const GREEN_HUE: f32 = 120.0;
 
-    // Calculate shortest path to green on the hue circle
-    let mut diff = GREEN_HUE - h;
-    if diff > 180.0 {
-        diff -= 360.0;
-    } else if diff < -180.0 {
-        diff += 360.0;
-    }
+    let rf = r as f32 * INV_255;
+    let gf = g as f32 * INV_255;
+    let bf = b as f32 * INV_255;
 
-    // Shift hue towards green
+    let max = rf.max(gf).max(bf);
+    let min = rf.min(gf).min(bf);
+    let d = max - min;
+    let l = (max + min) * 0.5;
+
+    // Branchless saturation: use a small epsilon to avoid division by zero
+    let denom = if l > 0.5 { 2.0 - max - min } else { max + min };
+    let s = if d < f32::EPSILON { 0.0 } else { d / denom };
+
+    // Branchless hue calculation
+    // Compute all three possible hue values, select based on which channel is max
+    let h = if d < f32::EPSILON {
+        0.0
+    } else {
+        let h_r = ((gf - bf) / d).rem_euclid(6.0) * 60.0;
+        let h_g = ((bf - rf) / d + 2.0) * 60.0;
+        let h_b = ((rf - gf) / d + 4.0) * 60.0;
+
+        // Select based on max channel using conditional moves
+        let r_is_max = (max - rf).abs() < f32::EPSILON;
+        let g_is_max = (max - gf).abs() < f32::EPSILON;
+
+        if r_is_max {
+            h_r
+        } else if g_is_max {
+            h_g
+        } else {
+            h_b
+        }
+    };
+
+    // Calculate shortest path to green on the hue circle (branchless)
+    let raw_diff = GREEN_HUE - h;
+    let diff = raw_diff - 360.0 * (raw_diff / 360.0 + 0.5).floor();
+    let diff =
+        diff + 360.0 * ((diff < -180.0) as i32 as f32) - 360.0 * ((diff > 180.0) as i32 as f32);
+
+    // Shift hue towards green, blend with original based on factor
     let new_h = (h + diff * factor).rem_euclid(360.0);
 
-    hsl_to_rgb(new_h, s, l)
-}
+    // HSL to RGB using chroma-based formula (more amenable to vectorization)
+    let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+    let h_prime = new_h / 60.0;
+    let x = c * (1.0 - (h_prime.rem_euclid(2.0) - 1.0).abs());
+    let m = l - c * 0.5;
 
-/// Convert RGB (0-255) to HSL (H: 0-360, S: 0-1, L: 0-1)
-fn rgb_to_hsl(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
-    let r = r as f32 / 255.0;
-    let g = g as f32 / 255.0;
-    let b = b as f32 / 255.0;
-
-    let max = r.max(g).max(b);
-    let min = r.min(g).min(b);
-    let l = (max + min) / 2.0;
-
-    if (max - min).abs() < f32::EPSILON {
-        // Achromatic (grey)
-        return (0.0, 0.0, l);
-    }
-
-    let d = max - min;
-    let s = if l > 0.5 {
-        d / (2.0 - max - min)
-    } else {
-        d / (max + min)
+    // Sector-based RGB assignment using lookup pattern
+    let sector = h_prime as u32 % 6;
+    let (r1, g1, b1) = match sector {
+        0 => (c, x, 0.0),
+        1 => (x, c, 0.0),
+        2 => (0.0, c, x),
+        3 => (0.0, x, c),
+        4 => (x, 0.0, c),
+        _ => (c, 0.0, x),
     };
-
-    let h = if (max - r).abs() < f32::EPSILON {
-        let mut h = (g - b) / d;
-        if g < b {
-            h += 6.0;
-        }
-        h * 60.0
-    } else if (max - g).abs() < f32::EPSILON {
-        ((b - r) / d + 2.0) * 60.0
-    } else {
-        ((r - g) / d + 4.0) * 60.0
-    };
-
-    (h, s, l)
-}
-
-/// Convert HSL (H: 0-360, S: 0-1, L: 0-1) to RGB (0-255)
-fn hsl_to_rgb(h: f32, s: f32, l: f32) -> (u8, u8, u8) {
-    if s.abs() < f32::EPSILON {
-        // Achromatic (grey)
-        let v = (l * 255.0) as u8;
-        return (v, v, v);
-    }
-
-    let q = if l < 0.5 {
-        l * (1.0 + s)
-    } else {
-        l + s - l * s
-    };
-    let p = 2.0 * l - q;
-
-    let h = h / 360.0; // Normalize to 0-1
-
-    let r = hue_to_rgb(p, q, h + 1.0 / 3.0);
-    let g = hue_to_rgb(p, q, h);
-    let b = hue_to_rgb(p, q, h - 1.0 / 3.0);
 
     (
-        (r * 255.0).round() as u8,
-        (g * 255.0).round() as u8,
-        (b * 255.0).round() as u8,
+        ((r1 + m) * 255.0 + 0.5) as u8,
+        ((g1 + m) * 255.0 + 0.5) as u8,
+        ((b1 + m) * 255.0 + 0.5) as u8,
     )
-}
-
-/// Helper for HSL to RGB conversion
-fn hue_to_rgb(p: f32, q: f32, mut t: f32) -> f32 {
-    if t < 0.0 {
-        t += 1.0;
-    }
-    if t > 1.0 {
-        t -= 1.0;
-    }
-
-    if t < 1.0 / 6.0 {
-        p + (q - p) * 6.0 * t
-    } else if t < 1.0 / 2.0 {
-        q
-    } else if t < 2.0 / 3.0 {
-        p + (q - p) * (2.0 / 3.0 - t) * 6.0
-    } else {
-        p
-    }
 }
