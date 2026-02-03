@@ -67,6 +67,18 @@ Icon starts with a green tint (unripe) and gradually returns to its original col
 
 Requires icons to be configured.
 
+### Pause Effects
+
+#### `pulse_on_pause`
+
+When enabled, the icon brightness pulses smoothly while the timer is paused (but not at a phase boundary). This provides visual feedback that the timer is paused and waiting to resume.
+
+```toml
+pulse_on_pause = true
+```
+
+Applies to `fill_icon` and `ripen` render modes only. Default: `false`.
+
 ### Colors
 
 ```toml

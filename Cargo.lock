@@ -2311,7 +2311,7 @@ checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 [[package]]
 name = "verandah-plugin-api"
 version = "0.1.0"
-source = "git+ssh://gitea@git.sw1nn.net/sw1nn/verandah-plugin-api.git?tag=v0.1.0#0e6144031fc97aa3242bb2982b4ed4e138249e8b"
+source = "git+ssh://gitea@git.sw1nn.net/sw1nn/verandah-plugin-api.git?tag=v0.2.0#35f241fc56a31dbc19cfa6fec459fe9120f95ae9"
 dependencies = [
  "abi_stable",
  "serde",

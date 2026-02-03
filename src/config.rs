@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde::Deserialize;
+use toml::Value;
 
 pub const DEFAULT_WORK_MINS: u64 = 25;
 pub const DEFAULT_SHORT_BREAK_MINS: u64 = 5;
@@ -31,6 +32,8 @@ pub struct Config {
     pub render_mode: String,
     /// Fill direction for fill_bg mode: "empty_to_full" (default) or "full_to_empty"
     pub fill_direction: String,
+    /// Pulse brightness when paused (for icon-based render modes)
+    pub pulse_on_pause: bool,
     /// Sound files to play on phase transitions (keys: work, break)
     #[serde(default)]
     pub sounds: HashMap<String, String>,
@@ -44,6 +47,10 @@ pub struct Config {
     /// empty_bg is the unfilled background color in fill_bg mode
     #[serde(default, alias = "colours")]
     pub colors: HashMap<String, String>,
+
+    /// Catch-all for unknown fields (logged as warnings)
+    #[serde(flatten)]
+    pub unknown: HashMap<String, Value>,
 }
 
 impl Default for Config {
@@ -58,10 +65,12 @@ impl Default for Config {
             padding: DEFAULT_PADDING,
             render_mode: DEFAULT_RENDER_MODE.to_string(),
             fill_direction: DEFAULT_FILL_DIRECTION.to_string(),
+            pulse_on_pause: false,
             sounds: HashMap::new(),
             phases: HashMap::new(),
             labels: Self::default_labels(),
             colors: Self::default_colors(),
+            unknown: HashMap::new(),
         }
     }
 }
@@ -85,7 +94,16 @@ impl Config {
 
     /// Merge HashMap fields with defaults for any missing keys.
     /// Call this after deserializing to ensure all expected keys are present.
+    /// Also logs warnings for any unknown config fields.
     pub fn with_defaults(mut self) -> Self {
+        // Log warnings for unknown fields (skip internal fields added by verandah)
+        for key in self.unknown.keys() {
+            if key == "_widget_id" {
+                continue;
+            }
+            tracing::warn!(field = key, "Unknown config field");
+        }
+
         for (key, value) in Self::default_colors() {
             self.colors.entry(key).or_insert(value);
         }
@@ -182,6 +200,22 @@ work = "WORK"
         assert_eq!(cfg.labels.get("work"), Some(&"WORK".to_string()));
         // Default should be filled in
         assert_eq!(cfg.labels.get("paused"), Some(&"PAUSED".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn test_config_unknown_fields_captured() -> crate::error::Result<()> {
+        let toml_str = r##"
+work = 25
+unknown_field = "value"
+another_unknown = 42
+"##;
+        let cfg: Config = toml::from_str::<Config>(toml_str).unwrap();
+        // Unknown fields should be captured
+        assert!(cfg.unknown.contains_key("unknown_field"));
+        assert!(cfg.unknown.contains_key("another_unknown"));
+        // Known fields should still work
+        assert_eq!(cfg.work, 25);
         Ok(())
     }
 }

@@ -68,27 +68,6 @@ shape = [3, 5]
 # render_mode: "text" (default), "fill_bg", or "fill_icon"
 # fill_direction: "empty_to_full" (default, fills up) or "full_to_empty" (drains down)
 # empty_bg: background color for unfilled portion
-# [[keys]]
-# index = 2
-# [keys.widget]
-# id = "pomodoro"
-# icons = { work = "pomodoro", short_break = "pomodoro-coffee", long_break = "pomodoro-beach-umbrella" }
-# [keys.widget.config]
-# work = 1
-# short_break = 5
-# long_break = 1
-# render_mode = "fill_bg"
-# fill_direction = "empty_to_full"
-# colors = { fg = "#ecf0f1", work_bg = "#e57373", break_bg = "#81c784", paused_bg = "#34495e", empty_bg = "#2c3e50" }
-# sounds = { work = "alarm-clock-elapsed", break = "complete" }
-# phases = { work = "work", short_break = "short brk", long_break = "long brk" }
-# [keys.action]
-# exec = "verandah-pomodoroctl toggle"
-
-# Variant 4: Fill-icon mode
-# Fills the phase icon from bottom to top as progress indicator
-# Unfilled portion is shown in greyscale
-# Requires icons to be configured; falls back to fill_bg if no icon available
 [[keys]]
 index = 2
 [keys.widget]
@@ -98,12 +77,35 @@ icons = { work = "pomodoro", short_break = "pomodoro-coffee", long_break = "pomo
 work = 1
 short_break = 1
 long_break = 1
-render_mode = "fill_icon"
+render_mode = "fill_bg"
 fill_direction = "empty_to_full"
-colors = { fg = "#ecf0f1", paused_bg = "#34495e" }
+pulse_on_pause = true
+colors = { fg = "#ecf0f1", work_bg = "#e57373", break_bg = "#81c784", paused_bg = "#34495e", empty_bg = "#2c3e50" }
 sounds = { work = "alarm-clock-elapsed", break = "complete" }
+phases = { work = "work", short_break = "short brk", long_break = "long brk" }
 [keys.action]
 exec = "verandah-pomodoroctl toggle"
+
+# Variant 4: Fill-icon mode
+# Fills the phase icon from bottom to top as progress indicator
+# Unfilled portion is shown in greyscale
+# Requires icons to be configured; falls back to fill_bg if no icon available
+# [[keys]]
+# index = 2
+# [keys.widget]
+# id = "pomodoro"
+# icons = { work = "pomodoro", short_break = "pomodoro-coffee", long_break = "pomodoro-beach-umbrella" }
+# [keys.widget.config]
+# work = 1
+# short_break = 1
+# long_break = 1
+# render_mode = "fill_icon"
+# fill_direction = "empty_to_full"
+# pulse_on_pause = true
+# colors = { fg = "#ecf0f1", paused_bg = "#34495e" }
+# sounds = { work = "alarm-clock-elapsed", break = "complete" }
+# [keys.action]
+# exec = "verandah-pomodoroctl toggle"
 
 # Variant 5: Ripen mode
 # Icon starts green (unripe) and gradually returns to original colors as timer progresses
@@ -119,8 +121,10 @@ exec = "verandah-pomodoroctl toggle"
 # short_break = 1
 # long_break = 1
 # render_mode = "ripen"
+# pulse_on_pause = true
 # colors = { fg = "#ecf0f1", paused_bg = "#34495e" }
 # sounds = { work = "alarm-clock-elapsed", break = "complete" }
+# labels = { paused = "\uf04c" }
 # [keys.action]
 # exec = "verandah-pomodoroctl toggle"
 
