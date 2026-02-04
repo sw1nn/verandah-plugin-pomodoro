@@ -52,7 +52,8 @@ struct PomodoroWidget {
     phases: HashMap<String, String>,
     // Labels/fallback text (keys: work, short_break, long_break, paused)
     labels: HashMap<String, String>,
-    // Sounds to play on phase transitions (keys: work, break)
+    // Sounds to play on phase transitions (keys: work, short_break, long_break)
+    // Sound indicates the STARTING phase, not the ending one
     sounds: HashMap<String, PathBuf>,
     // Socket control
     command_rx: Option<Receiver<Command>>,
@@ -175,18 +176,16 @@ impl WidgetPlugin for PomodoroWidget {
                 self.last_tick = Some(now);
 
                 // Play sound on phase transition
-                match transition {
-                    Transition::WorkComplete => {
-                        if let Some(path) = self.sounds.get("work") {
-                            sound::play_sound(path);
-                        }
+                // Sound indicates the phase that is STARTING, not the one that ended
+                if transition != Transition::None {
+                    let sound_key = match self.timer.phase() {
+                        Phase::Work => "work",
+                        Phase::ShortBreak => "short_break",
+                        Phase::LongBreak => "long_break",
+                    };
+                    if let Some(path) = self.sounds.get(sound_key) {
+                        sound::play_sound(path);
                     }
-                    Transition::BreakComplete => {
-                        if let Some(path) = self.sounds.get("break") {
-                            sound::play_sound(path);
-                        }
-                    }
-                    Transition::None => {}
                 }
             }
         } else {

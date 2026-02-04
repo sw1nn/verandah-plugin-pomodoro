@@ -34,7 +34,8 @@ pub struct Config {
     pub fill_direction: String,
     /// Pulse brightness when paused (for icon-based render modes)
     pub pulse_on_pause: bool,
-    /// Sound files to play on phase transitions (keys: work, break)
+    /// Sound files to play on phase transitions (keys: work, short_break, long_break)
+    /// Sound indicates the phase that is STARTING, not the one that ended
     pub sounds: HashMap<String, String>,
     /// Phase indicator text (keys: work, short_break, long_break)
     pub phases: HashMap<String, String>,

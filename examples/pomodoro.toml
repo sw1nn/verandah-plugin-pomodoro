@@ -40,7 +40,7 @@ shape = [3, 5]
 # short_break = 1
 # long_break = 1
 # colors = { fg = "#ecf0f1", work_bg = "#e57373", break_bg = "#81c784", paused_bg = "#34495e" }
-# sounds = { work = "alarm-clock-elapsed", break = "complete" }
+# sounds = { work = "alarm-clock-elapsed", short_break = "complete", long_break = "complete" }
 # phases = { work = "work", short_break = "short brk", long_break = "long brk" }
 # labels = { work = "Work", short_break = "Short\nBreak", long_break = "Long\nBreak", paused = "\uf04c" }
 # [keys.action]
@@ -57,7 +57,7 @@ shape = [3, 5]
 # short_break = 1
 # long_break = 1
 # colors = { fg = "#ecf0f1", work_bg = "#e57373", break_bg = "#81c784", paused_bg = "#34495e" }
-# sounds = { work = "alarm-clock-elapsed", break = "complete" }
+# sounds = { work = "alarm-clock-elapsed", short_break = "complete", long_break = "complete" }
 # phases = { work = "W", short_break = "SB", long_break = "LB" }
 # labels = { work = "WORK", short_break = "BREAK", long_break = "LONG\nBREAK", paused = "||" }
 # [keys.action]
@@ -81,7 +81,7 @@ render_mode = "fill_bg"
 fill_direction = "empty_to_full"
 pulse_on_pause = true
 colors = { fg = "#ecf0f1", work_bg = "#e57373", break_bg = "#81c784", paused_bg = "#34495e", empty_bg = "#2c3e50" }
-sounds = { work = "alarm-clock-elapsed", break = "complete" }
+sounds = { work = "alarm-clock-elapsed", short_break = "complete", long_break = "complete" }
 phases = { work = "work", short_break = "short brk", long_break = "long brk" }
 [keys.action]
 exec = "verandah-pomodoroctl toggle"
@@ -103,7 +103,7 @@ exec = "verandah-pomodoroctl toggle"
 # fill_direction = "empty_to_full"
 # pulse_on_pause = true
 # colors = { fg = "#ecf0f1", paused_bg = "#34495e" }
-# sounds = { work = "alarm-clock-elapsed", break = "complete" }
+# sounds = { work = "alarm-clock-elapsed", short_break = "complete", long_break = "complete" }
 # [keys.action]
 # exec = "verandah-pomodoroctl toggle"
 
@@ -123,7 +123,7 @@ exec = "verandah-pomodoroctl toggle"
 # render_mode = "ripen"
 # pulse_on_pause = true
 # colors = { fg = "#ecf0f1", paused_bg = "#34495e" }
-# sounds = { work = "alarm-clock-elapsed", break = "complete" }
+# sounds = { work = "alarm-clock-elapsed", short_break = "complete", long_break = "complete" }
 # labels = { paused = "\uf04c" }
 # [keys.action]
 # exec = "verandah-pomodoroctl toggle"
