@@ -2,6 +2,19 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.12.0 - 2026-02-04
+#### Features
+- (**colors**) make dot colors configurable - (4f4e0bf) - Neale Swinnerton
+- (**render**) add state-based dot colors and fill dots at work start - (f7281d0) - Neale Swinnerton
+- (**sound**) play sound for starting phase instead of ending phase - (63fad24) - Neale Swinnerton
+#### Refactoring
+- (**colors**) use rgb() helper from updated plugin-utils - (f7b22cc) - Neale Swinnerton
+#### Miscellaneous Chores
+- (**deps**) update utils url - (a3f22fc) - Neale Swinnerton
+- (**deps**) move submodules to github.com - (3f93e6f) - Neale Swinnerton
+
+- - -
+
 ## v0.11.0 - 2026-02-03
 #### Refactoring
 - use verandah-plugin-utils for shared functionality - (6101d58) - Neale Swinnerton
