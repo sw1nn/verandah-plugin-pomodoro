@@ -36,6 +36,33 @@ pub enum FillDirection {
     FullToEmpty,
 }
 
+/// When to display the phase indicator (work, short brk, long brk)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, EnumString, AsRefStr, VariantNames)]
+#[strum(serialize_all = "snake_case")]
+pub enum PhaseIndicatorDisplay {
+    /// Never show the phase indicator
+    None,
+    /// Show phase indicator only when running
+    Running,
+    /// Show phase indicator only when paused (default)
+    #[default]
+    Paused,
+    /// Always show the phase indicator
+    Both,
+}
+
+impl PhaseIndicatorDisplay {
+    /// Returns true if the phase indicator should be shown given the current running state
+    pub fn should_show(self, is_running: bool) -> bool {
+        match self {
+            PhaseIndicatorDisplay::None => false,
+            PhaseIndicatorDisplay::Running => is_running,
+            PhaseIndicatorDisplay::Paused => !is_running,
+            PhaseIndicatorDisplay::Both => true,
+        }
+    }
+}
+
 /// Render the pomodoro button image
 #[allow(clippy::too_many_arguments)]
 pub fn render_button(
@@ -57,6 +84,7 @@ pub fn render_button(
     phases: &HashMap<String, String>,
     render_mode: RenderMode,
     fill_direction: FillDirection,
+    phase_indicator_display: PhaseIndicatorDisplay,
     pulse_on_pause: bool,
 ) -> RgbImage {
     // At phase boundary (elapsed=0) and not running: show icon or fallback
@@ -87,6 +115,7 @@ pub fn render_button(
             padding,
             paused_text,
             phases,
+            phase_indicator_display,
             dot_running,
             dot_paused,
         ),
@@ -101,6 +130,7 @@ pub fn render_button(
             phases,
             fill_direction,
             paused_text,
+            phase_indicator_display,
             pulse_on_pause,
             dot_running,
             dot_paused,
@@ -117,6 +147,7 @@ pub fn render_button(
             phases,
             fill_direction,
             paused_text,
+            phase_indicator_display,
             pulse_on_pause,
             dot_running,
             dot_paused,
@@ -127,12 +158,94 @@ pub fn render_button(
             height,
             fg_color,
             phase_icon,
+            phases,
             paused_text,
+            phase_indicator_display,
             pulse_on_pause,
             dot_running,
             dot_paused,
         ),
     }
+}
+
+/// Get the phase indicator text from the phases map
+fn get_phase_indicator<'a>(timer: &Timer, phases: &'a HashMap<String, String>) -> &'a str {
+    match timer.phase() {
+        Phase::Work => phases.get("work").map(|s| s.as_str()).unwrap_or("work"),
+        Phase::ShortBreak => phases
+            .get("short_break")
+            .map(|s| s.as_str())
+            .unwrap_or("short brk"),
+        Phase::LongBreak => phases
+            .get("long_break")
+            .map(|s| s.as_str())
+            .unwrap_or("long brk"),
+    }
+}
+
+/// Configuration for the common overlay elements
+struct OverlayConfig<'a> {
+    fg_color: Rgba<u8>,
+    dot_running: Rgba<u8>,
+    dot_paused: Rgba<u8>,
+    /// Phase indicator text (e.g., "work", "short brk") - shown at top normally, bottom when paused
+    phase_indicator: Option<&'a str>,
+    /// When to display the phase indicator
+    phase_indicator_display: PhaseIndicatorDisplay,
+    /// Text to show centered when paused (e.g., "||")
+    paused_text: Option<&'a str>,
+    /// Whether to apply brightness pulse when paused
+    pulse_on_pause: bool,
+}
+
+/// Render common overlay elements (top/bottom indicators, paused text, pulse)
+///
+/// This handles:
+/// - Top indicator: remaining time when paused mid-interval, phase indicator when configured
+/// - Bottom indicator: phase indicator when paused mid-interval and configured, dots otherwise
+/// - Brightness pulse when paused (if enabled)
+/// - Centered paused text when not running (if provided)
+fn render_overlay(rgba: &mut RgbaImage, timer: &Timer, config: &OverlayConfig) {
+    let width = rgba.width();
+    let is_running = timer.is_running();
+    let is_paused_mid_interval = !is_running && !timer.at_phase_boundary();
+    let show_phase = config.phase_indicator_display.should_show(is_running);
+
+    let dot_color = if is_running {
+        config.dot_running
+    } else {
+        config.dot_paused
+    };
+
+    // Top indicator: remaining time when paused mid-interval, phase indicator when configured
+    if is_paused_mid_interval {
+        draw_remaining_time_top(rgba, &timer.remaining_formatted(), width, config.fg_color);
+    } else if show_phase && let Some(phase) = config.phase_indicator {
+        draw_phase_indicator(rgba, phase, config.fg_color, 0.0);
+    }
+
+    // Apply brightness pulse if paused and enabled
+    if !is_running && config.pulse_on_pause {
+        apply_brightness_pulse(rgba);
+    }
+
+    // Overlay paused text if not running
+    if !is_running && let Some(text) = config.paused_text {
+        draw_centered_text_with_reserved(rgba, text, config.fg_color, 0.1, 18.0, 18.0, 0.0);
+    }
+
+    // Bottom indicator: phase indicator when paused mid-interval and configured, dots otherwise
+    let show_phase_bottom =
+        is_paused_mid_interval && config.phase_indicator_display.should_show(false);
+    draw_bottom_indicator(
+        rgba,
+        timer,
+        width,
+        config.fg_color,
+        dot_color,
+        config.phase_indicator,
+        show_phase_bottom,
+    );
 }
 
 /// Render traditional text-based timer display
@@ -148,13 +261,18 @@ fn render_text_mode(
     padding: f32,
     paused_text: &str,
     phases: &HashMap<String, String>,
+    phase_indicator_display: PhaseIndicatorDisplay,
     dot_running: Rgba<u8>,
     dot_paused: Rgba<u8>,
 ) -> RgbImage {
     let mut rgba = RgbaImage::new(width, height);
 
+    let is_running = timer.is_running();
+    let is_paused_mid_interval = !is_running && !timer.at_phase_boundary();
+    let show_phase = phase_indicator_display.should_show(is_running);
+
     // Determine background color based on state
-    let bg = if !timer.is_running() {
+    let bg = if !is_running {
         paused_bg
     } else if timer.phase().is_break() {
         break_bg
@@ -166,37 +284,36 @@ fn render_text_mode(
     draw_filled_rect_mut(&mut rgba, Rect::at(0, 0).of_size(width, height), bg);
 
     // Build display text - show paused_text when paused mid-interval
-    let time_text = if !timer.is_running() {
+    let time_text = if !is_running {
         paused_text.to_string()
     } else {
         timer.remaining_formatted()
     };
 
-    let phase_indicator = match timer.phase() {
-        Phase::Work => phases.get("work").map(|s| s.as_str()).unwrap_or("work"),
-        Phase::ShortBreak => phases
-            .get("short_break")
-            .map(|s| s.as_str())
-            .unwrap_or("short brk"),
-        Phase::LongBreak => phases
-            .get("long_break")
-            .map(|s| s.as_str())
-            .unwrap_or("long brk"),
-    };
+    let phase_indicator = get_phase_indicator(timer, phases);
+    let dot_color = if is_running { dot_running } else { dot_paused };
 
-    // Draw phase indicator (top)
-    draw_phase_indicator(&mut rgba, phase_indicator, fg_color, padding);
+    // Top indicator: remaining time when paused mid-interval, phase indicator when configured
+    if is_paused_mid_interval {
+        draw_remaining_time_top(&mut rgba, &timer.remaining_formatted(), width, fg_color);
+    } else if show_phase {
+        draw_phase_indicator(&mut rgba, phase_indicator, fg_color, padding);
+    }
 
     // Draw main time (center)
     draw_centered_text_with_reserved(&mut rgba, &time_text, fg_color, padding, 18.0, 18.0, 0.0);
 
-    // Draw bottom indicator (dots, or remaining time when paused mid-interval)
-    let dot_color = if timer.is_running() {
-        dot_running
-    } else {
-        dot_paused
-    };
-    draw_bottom_indicator(&mut rgba, timer, width, dot_color);
+    // Draw bottom indicator (phase when paused mid-interval and configured, dots otherwise)
+    let show_phase_bottom = is_paused_mid_interval && phase_indicator_display.should_show(false);
+    draw_bottom_indicator(
+        &mut rgba,
+        timer,
+        width,
+        fg_color,
+        dot_color,
+        Some(phase_indicator),
+        show_phase_bottom,
+    );
 
     // Convert to RGB
     RgbImage::from_fn(width, height, |x, y| {
@@ -218,6 +335,7 @@ fn render_fill_bg_mode(
     phases: &HashMap<String, String>,
     fill_direction: FillDirection,
     paused_text: &str,
+    phase_indicator_display: PhaseIndicatorDisplay,
     pulse_on_pause: bool,
     dot_running: Rgba<u8>,
     dot_paused: Rgba<u8>,
@@ -267,37 +385,21 @@ fn render_fill_bg_mode(
         draw_filled_rect_mut(&mut rgba, Rect::at(0, 0).of_size(width, height), fill_color);
     }
 
-    // Overlay phase indicator (top)
-    let phase_indicator = match timer.phase() {
-        Phase::Work => phases.get("work").map(|s| s.as_str()).unwrap_or("work"),
-        Phase::ShortBreak => phases
-            .get("short_break")
-            .map(|s| s.as_str())
-            .unwrap_or("short brk"),
-        Phase::LongBreak => phases
-            .get("long_break")
-            .map(|s| s.as_str())
-            .unwrap_or("long brk"),
-    };
-    draw_phase_indicator(&mut rgba, phase_indicator, fg_color, 0.0);
-
-    // Overlay bottom indicator (dots, or remaining time when paused mid-interval)
-    let dot_color = if timer.is_running() {
-        dot_running
-    } else {
-        dot_paused
-    };
-    draw_bottom_indicator(&mut rgba, timer, width, dot_color);
-
-    // Apply brightness pulse if paused and enabled
-    if !timer.is_running() && pulse_on_pause {
-        apply_brightness_pulse(&mut rgba);
-    }
-
-    // Overlay paused text if not running
-    if !timer.is_running() {
-        draw_centered_text_with_reserved(&mut rgba, paused_text, fg_color, 0.1, 18.0, 18.0, 0.0);
-    }
+    // Render common overlay elements
+    let phase_indicator = get_phase_indicator(timer, phases);
+    render_overlay(
+        &mut rgba,
+        timer,
+        &OverlayConfig {
+            fg_color,
+            dot_running,
+            dot_paused,
+            phase_indicator: Some(phase_indicator),
+            phase_indicator_display,
+            paused_text: Some(paused_text),
+            pulse_on_pause,
+        },
+    );
 
     // Convert to RGB
     RgbImage::from_fn(width, height, |x, y| {
@@ -321,6 +423,7 @@ fn render_fill_icon_mode(
     phases: &HashMap<String, String>,
     fill_direction: FillDirection,
     paused_text: &str,
+    phase_indicator_display: PhaseIndicatorDisplay,
     pulse_on_pause: bool,
     dot_running: Rgba<u8>,
     dot_paused: Rgba<u8>,
@@ -346,6 +449,7 @@ fn render_fill_icon_mode(
             phases,
             fill_direction,
             paused_text,
+            phase_indicator_display,
             pulse_on_pause,
             dot_running,
             dot_paused,
@@ -396,23 +500,21 @@ fn render_fill_icon_mode(
         }
     }
 
-    // Apply brightness pulse if paused and enabled
-    if !timer.is_running() && pulse_on_pause {
-        apply_brightness_pulse(&mut rgba);
-    }
-
-    // Overlay paused text if not running
-    if !timer.is_running() {
-        draw_centered_text_with_reserved(&mut rgba, paused_text, fg_color, 0.1, 18.0, 18.0, 0.0);
-    }
-
-    // Overlay bottom indicator (dots, or remaining time when paused mid-interval)
-    let dot_color = if timer.is_running() {
-        dot_running
-    } else {
-        dot_paused
-    };
-    draw_bottom_indicator(&mut rgba, timer, width, dot_color);
+    // Render common overlay elements
+    let phase_indicator = get_phase_indicator(timer, phases);
+    render_overlay(
+        &mut rgba,
+        timer,
+        &OverlayConfig {
+            fg_color,
+            dot_running,
+            dot_paused,
+            phase_indicator: Some(phase_indicator),
+            phase_indicator_display,
+            paused_text: Some(paused_text),
+            pulse_on_pause,
+        },
+    );
 
     // Convert to RGB
     RgbImage::from_fn(width, height, |x, y| {
@@ -532,12 +634,22 @@ fn display_iterations(timer: &Timer) -> u8 {
     }
 }
 
-/// Draw bottom indicator: remaining time when paused mid-interval, dots otherwise
-fn draw_bottom_indicator(rgba: &mut RgbaImage, timer: &Timer, width: u32, color: Rgba<u8>) {
-    if !timer.is_running() && !timer.at_phase_boundary() {
-        draw_remaining_time_bottom(rgba, &timer.remaining_formatted(), width, color);
+/// Draw bottom indicator: phase indicator when requested, dots otherwise
+fn draw_bottom_indicator(
+    rgba: &mut RgbaImage,
+    timer: &Timer,
+    width: u32,
+    fg_color: Rgba<u8>,
+    dot_color: Rgba<u8>,
+    phase_indicator: Option<&str>,
+    show_phase_indicator: bool,
+) {
+    if show_phase_indicator {
+        if let Some(phase) = phase_indicator {
+            draw_phase_indicator_bottom(rgba, phase, fg_color);
+        }
     } else {
-        draw_iteration_dots(rgba, display_iterations(timer), width, color);
+        draw_iteration_dots(rgba, display_iterations(timer), width, dot_color);
     }
 }
 
@@ -577,8 +689,8 @@ fn draw_iteration_dots(
     draw_text_mut(rgba, dot_color, x, y, scale, &font, &dots);
 }
 
-/// Draw remaining time at the bottom of the button
-fn draw_remaining_time_bottom(rgba: &mut RgbaImage, text: &str, width: u32, color: Rgba<u8>) {
+/// Draw remaining time at the top of the button
+fn draw_remaining_time_top(rgba: &mut RgbaImage, text: &str, width: u32, color: Rgba<u8>) {
     let Some(font_bytes) = get_system_monospace_font() else {
         return;
     };
@@ -588,7 +700,6 @@ fn draw_remaining_time_bottom(rgba: &mut RgbaImage, text: &str, width: u32, colo
 
     let scale = PxScale::from(24.0);
     let scaled_font = font.as_scaled(scale);
-    let line_height = scaled_font.height();
 
     let text_width: f32 = text
         .chars()
@@ -596,7 +707,7 @@ fn draw_remaining_time_bottom(rgba: &mut RgbaImage, text: &str, width: u32, colo
         .sum();
 
     let x = ((width as f32 - text_width) / 2.0).max(0.0) as i32;
-    let y = (rgba.height() as f32 - line_height - 4.0) as i32;
+    let y = 4; // 4px margin from top
 
     draw_text_mut(rgba, color, x, y, scale, &font, text);
 }
@@ -626,6 +737,32 @@ fn draw_phase_indicator(rgba: &mut RgbaImage, text: &str, fg_color: Rgba<u8>, _p
     draw_text_mut(rgba, fg_color, x, y, scale, &font, text);
 }
 
+/// Draw phase indicator at the bottom
+fn draw_phase_indicator_bottom(rgba: &mut RgbaImage, text: &str, fg_color: Rgba<u8>) {
+    let Some(font_bytes) = get_system_monospace_font() else {
+        return;
+    };
+    let Ok(font) = FontRef::try_from_slice(font_bytes) else {
+        return;
+    };
+
+    let width = rgba.width();
+
+    let scale = PxScale::from(14.0);
+    let scaled_font = font.as_scaled(scale);
+    let line_height = scaled_font.height();
+
+    let text_width: f32 = text
+        .chars()
+        .map(|c| scaled_font.h_advance(font.glyph_id(c)))
+        .sum();
+
+    let x = ((width as f32 - text_width) / 2.0).max(0.0) as i32;
+    let y = (rgba.height() as f32 - line_height - 4.0) as i32;
+
+    draw_text_mut(rgba, fg_color, x, y, scale, &font, text);
+}
+
 /// Render ripen mode: icon starts green (unripe) and gradually returns to original colors
 #[allow(clippy::too_many_arguments)]
 fn render_ripen_mode(
@@ -634,7 +771,9 @@ fn render_ripen_mode(
     height: u32,
     fg_color: Rgba<u8>,
     phase_icon: Option<&PluginImage>,
+    phases: &HashMap<String, String>,
     paused_text: &str,
+    phase_indicator_display: PhaseIndicatorDisplay,
     pulse_on_pause: bool,
     dot_running: Rgba<u8>,
     dot_paused: Rgba<u8>,
@@ -650,12 +789,20 @@ fn render_ripen_mode(
         // Just show a green-ish background
         let green_bg = Rgba([60, 120, 60, 255]);
         draw_filled_rect_mut(&mut rgba, Rect::at(0, 0).of_size(width, height), green_bg);
-        let dot_color = if timer.is_running() {
-            dot_running
-        } else {
-            dot_paused
-        };
-        draw_bottom_indicator(&mut rgba, timer, width, dot_color);
+        let phase_indicator = get_phase_indicator(timer, phases);
+        render_overlay(
+            &mut rgba,
+            timer,
+            &OverlayConfig {
+                fg_color,
+                dot_running,
+                dot_paused,
+                phase_indicator: Some(phase_indicator),
+                phase_indicator_display,
+                paused_text: None,
+                pulse_on_pause: false,
+            },
+        );
         return RgbImage::from_fn(width, height, |x, y| {
             let pixel = rgba.get_pixel(x, y);
             Rgb([pixel[0], pixel[1], pixel[2]])
@@ -681,23 +828,21 @@ fn render_ripen_mode(
         }
     }
 
-    // Apply brightness pulse if paused and enabled
-    if !timer.is_running() && pulse_on_pause {
-        apply_brightness_pulse(&mut rgba);
-    }
-
-    // Overlay paused text if not running
-    if !timer.is_running() {
-        draw_centered_text_with_reserved(&mut rgba, paused_text, fg_color, 0.1, 18.0, 18.0, 0.0);
-    }
-
-    // Overlay bottom indicator (dots, or remaining time when paused mid-interval)
-    let dot_color = if timer.is_running() {
-        dot_running
-    } else {
-        dot_paused
-    };
-    draw_bottom_indicator(&mut rgba, timer, width, dot_color);
+    // Render common overlay elements
+    let phase_indicator = get_phase_indicator(timer, phases);
+    render_overlay(
+        &mut rgba,
+        timer,
+        &OverlayConfig {
+            fg_color,
+            dot_running,
+            dot_paused,
+            phase_indicator: Some(phase_indicator),
+            phase_indicator_display,
+            paused_text: Some(paused_text),
+            pulse_on_pause,
+        },
+    );
 
     RgbImage::from_fn(width, height, |x, y| {
         let pixel = rgba.get_pixel(x, y);

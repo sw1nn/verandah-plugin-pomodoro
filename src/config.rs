@@ -10,6 +10,7 @@ pub const DEFAULT_INTERVAL_MS: u64 = 1000;
 pub const DEFAULT_PADDING: f32 = 0.05;
 pub const DEFAULT_RENDER_MODE: &str = "text";
 pub const DEFAULT_FILL_DIRECTION: &str = "empty_to_full";
+pub const DEFAULT_PHASE_INDICATOR_DISPLAY: &str = "paused";
 
 /// Final configuration after building from TOML
 #[derive(Debug, Clone)]
@@ -32,6 +33,8 @@ pub struct Config {
     pub render_mode: String,
     /// Fill direction for fill_bg mode: "empty_to_full" (default) or "full_to_empty"
     pub fill_direction: String,
+    /// When to display the phase indicator: "none", "running", "paused" (default), or "both"
+    pub phase_indicator_display: String,
     /// Pulse brightness when paused (for icon-based render modes)
     pub pulse_on_pause: bool,
     /// Sound files to play on phase transitions (keys: work, short_break, long_break)
@@ -58,6 +61,7 @@ pub struct ConfigBuilder {
     padding: f32,
     render_mode: String,
     fill_direction: String,
+    phase_indicator_display: String,
     pulse_on_pause: bool,
     #[serde(default)]
     sounds: HashMap<String, String>,
@@ -84,6 +88,7 @@ impl Default for ConfigBuilder {
             padding: DEFAULT_PADDING,
             render_mode: DEFAULT_RENDER_MODE.to_string(),
             fill_direction: DEFAULT_FILL_DIRECTION.to_string(),
+            phase_indicator_display: DEFAULT_PHASE_INDICATOR_DISPLAY.to_string(),
             pulse_on_pause: false,
             sounds: HashMap::new(),
             phases: HashMap::new(),
@@ -144,6 +149,7 @@ impl ConfigBuilder {
             padding: self.padding,
             render_mode: self.render_mode,
             fill_direction: self.fill_direction,
+            phase_indicator_display: self.phase_indicator_display,
             pulse_on_pause: self.pulse_on_pause,
             sounds: self.sounds,
             phases: self.phases,

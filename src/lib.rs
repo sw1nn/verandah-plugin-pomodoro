@@ -24,7 +24,7 @@ mod sound;
 mod timer;
 
 use config::{Config, ConfigBuilder, DEFAULT_INTERVAL_MS};
-use render::{FillDirection, RenderMode};
+use render::{FillDirection, PhaseIndicatorDisplay, RenderMode};
 use socket::{Command, SocketListener};
 use timer::{Phase, Timer, Transition};
 
@@ -50,6 +50,7 @@ struct PomodoroWidget {
     // Render mode and fill direction
     render_mode: RenderMode,
     fill_direction: FillDirection,
+    phase_indicator_display: PhaseIndicatorDisplay,
     pulse_on_pause: bool,
     phases: HashMap<String, String>,
     // Labels/fallback text (keys: work, short_break, long_break, paused)
@@ -74,6 +75,7 @@ impl PomodoroWidget {
             padding: cfg.padding,
             render_mode: cfg.render_mode.parse().unwrap_or_default(),
             fill_direction: cfg.fill_direction.parse().unwrap_or_default(),
+            phase_indicator_display: cfg.phase_indicator_display.parse().unwrap_or_default(),
             pulse_on_pause: cfg.pulse_on_pause,
             phases: cfg.phases,
             labels: cfg.labels,
@@ -133,6 +135,7 @@ impl WidgetPlugin for PomodoroWidget {
         self.padding = cfg.padding.clamp(0.0, 0.4);
         self.render_mode = cfg.render_mode.parse().unwrap_or_default();
         self.fill_direction = cfg.fill_direction.parse().unwrap_or_default();
+        self.phase_indicator_display = cfg.phase_indicator_display.parse().unwrap_or_default();
         self.pulse_on_pause = cfg.pulse_on_pause;
         self.phases = cfg.phases;
         self.labels = cfg.labels;
@@ -280,6 +283,7 @@ impl WidgetPlugin for PomodoroWidget {
             &self.phases,
             self.render_mode,
             self.fill_direction,
+            self.phase_indicator_display,
             self.pulse_on_pause,
         );
 
