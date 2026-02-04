@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.14.0 - 2026-02-04
+#### Features
+- (**render**) make phase indicator display configurable - (4a96e64) - Neale Swinnerton
+
+- - -
+
 ## v0.13.0 - 2026-02-04
 #### Features
 - (**render**) show remaining time at bottom when paused mid-interval - (456e143) - Neale Swinnerton
