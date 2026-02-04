@@ -47,6 +47,8 @@ pub fn render_button(
     break_bg: Rgba<u8>,
     paused_bg: Rgba<u8>,
     empty_bg: Rgba<u8>,
+    dot_running: Rgba<u8>,
+    dot_paused: Rgba<u8>,
     padding: f32,
     paused_icon: Option<&PluginImage>,
     phase_icon: Option<&PluginImage>,
@@ -60,7 +62,13 @@ pub fn render_button(
     // At phase boundary (elapsed=0) and not running: show icon or fallback
     if !timer.is_running() && timer.at_phase_boundary() {
         if let Some(icon) = paused_icon {
-            return render_icon_with_dots(icon, width, height, display_iterations(timer));
+            return render_icon_with_dots(
+                icon,
+                width,
+                height,
+                display_iterations(timer),
+                dot_paused,
+            );
         }
         if let Some(text) = fallback_text {
             return render_paused_text(text, width, height, fg_color, paused_bg, padding);
@@ -79,6 +87,8 @@ pub fn render_button(
             padding,
             paused_text,
             phases,
+            dot_running,
+            dot_paused,
         ),
         RenderMode::FillBg => render_fill_bg_mode(
             timer,
@@ -92,6 +102,8 @@ pub fn render_button(
             fill_direction,
             paused_text,
             pulse_on_pause,
+            dot_running,
+            dot_paused,
         ),
         RenderMode::FillIcon => render_fill_icon_mode(
             timer,
@@ -106,6 +118,8 @@ pub fn render_button(
             fill_direction,
             paused_text,
             pulse_on_pause,
+            dot_running,
+            dot_paused,
         ),
         RenderMode::Ripen => render_ripen_mode(
             timer,
@@ -115,6 +129,8 @@ pub fn render_button(
             phase_icon,
             paused_text,
             pulse_on_pause,
+            dot_running,
+            dot_paused,
         ),
     }
 }
@@ -132,6 +148,8 @@ fn render_text_mode(
     padding: f32,
     paused_text: &str,
     phases: &HashMap<String, String>,
+    dot_running: Rgba<u8>,
+    dot_paused: Rgba<u8>,
 ) -> RgbImage {
     let mut rgba = RgbaImage::new(width, height);
 
@@ -174,9 +192,9 @@ fn render_text_mode(
 
     // Draw iteration progress dots (bottom)
     let dot_color = if timer.is_running() {
-        DOT_COLOR_RUNNING
+        dot_running
     } else {
-        DOT_COLOR_PAUSED
+        dot_paused
     };
     draw_iteration_dots(&mut rgba, display_iterations(timer), width, dot_color);
 
@@ -201,6 +219,8 @@ fn render_fill_bg_mode(
     fill_direction: FillDirection,
     paused_text: &str,
     pulse_on_pause: bool,
+    dot_running: Rgba<u8>,
+    dot_paused: Rgba<u8>,
 ) -> RgbImage {
     let mut rgba = RgbaImage::new(width, height);
 
@@ -263,9 +283,9 @@ fn render_fill_bg_mode(
 
     // Overlay iteration progress dots (bottom)
     let dot_color = if timer.is_running() {
-        DOT_COLOR_RUNNING
+        dot_running
     } else {
-        DOT_COLOR_PAUSED
+        dot_paused
     };
     draw_iteration_dots(&mut rgba, display_iterations(timer), width, dot_color);
 
@@ -302,6 +322,8 @@ fn render_fill_icon_mode(
     fill_direction: FillDirection,
     paused_text: &str,
     pulse_on_pause: bool,
+    dot_running: Rgba<u8>,
+    dot_paused: Rgba<u8>,
 ) -> RgbImage {
     let mut rgba = RgbaImage::new(width, height);
 
@@ -325,6 +347,8 @@ fn render_fill_icon_mode(
             fill_direction,
             paused_text,
             pulse_on_pause,
+            dot_running,
+            dot_paused,
         );
     };
 
@@ -384,9 +408,9 @@ fn render_fill_icon_mode(
 
     // Overlay iteration progress dots (bottom)
     let dot_color = if timer.is_running() {
-        DOT_COLOR_RUNNING
+        dot_running
     } else {
-        DOT_COLOR_PAUSED
+        dot_paused
     };
     draw_iteration_dots(&mut rgba, display_iterations(timer), width, dot_color);
 
@@ -473,7 +497,13 @@ fn render_icon(icon: &PluginImage, width: u32, height: u32) -> RgbImage {
 }
 
 /// Render an icon image with iteration dots overlay (used when paused at phase boundary)
-fn render_icon_with_dots(icon: &PluginImage, width: u32, height: u32, display_iters: u8) -> RgbImage {
+fn render_icon_with_dots(
+    icon: &PluginImage,
+    width: u32,
+    height: u32,
+    display_iters: u8,
+    dot_color: Rgba<u8>,
+) -> RgbImage {
     let rgb = render_icon(icon, width, height);
 
     let mut rgba = RgbaImage::from_fn(width, height, |x, y| {
@@ -481,18 +511,13 @@ fn render_icon_with_dots(icon: &PluginImage, width: u32, height: u32, display_it
         Rgba([pixel[0], pixel[1], pixel[2], 255])
     });
 
-    // Always paused when called from phase boundary
-    draw_iteration_dots(&mut rgba, display_iters, width, DOT_COLOR_PAUSED);
+    draw_iteration_dots(&mut rgba, display_iters, width, dot_color);
 
     RgbImage::from_fn(width, height, |x, y| {
         let pixel = rgba.get_pixel(x, y);
         Rgb([pixel[0], pixel[1], pixel[2]])
     })
 }
-
-// Dot colors based on timer state
-const DOT_COLOR_RUNNING: Rgba<u8> = Rgba([0, 128, 0, 255]); // Dark green when running
-const DOT_COLOR_PAUSED: Rgba<u8> = Rgba([128, 128, 128, 255]); // Grey when paused
 
 /// Calculate display iterations: dots fill when work STARTS (not ends)
 /// During work (running or paused mid-interval): show iterations + 1
@@ -509,7 +534,12 @@ fn display_iterations(timer: &Timer) -> u8 {
 
 /// Draw iteration progress dots at the bottom
 /// `display_iterations` should account for the current phase (work shows +1)
-fn draw_iteration_dots(rgba: &mut RgbaImage, display_iterations: u8, width: u32, dot_color: Rgba<u8>) {
+fn draw_iteration_dots(
+    rgba: &mut RgbaImage,
+    display_iterations: u8,
+    width: u32,
+    dot_color: Rgba<u8>,
+) {
     let Some(font_bytes) = get_system_monospace_font() else {
         return;
     };
@@ -564,6 +594,7 @@ fn draw_phase_indicator(rgba: &mut RgbaImage, text: &str, fg_color: Rgba<u8>, _p
 }
 
 /// Render ripen mode: icon starts green (unripe) and gradually returns to original colors
+#[allow(clippy::too_many_arguments)]
 fn render_ripen_mode(
     timer: &Timer,
     width: u32,
@@ -572,6 +603,8 @@ fn render_ripen_mode(
     phase_icon: Option<&PluginImage>,
     paused_text: &str,
     pulse_on_pause: bool,
+    dot_running: Rgba<u8>,
+    dot_paused: Rgba<u8>,
 ) -> RgbImage {
     let mut rgba = RgbaImage::new(width, height);
 
@@ -585,9 +618,9 @@ fn render_ripen_mode(
         let green_bg = Rgba([60, 120, 60, 255]);
         draw_filled_rect_mut(&mut rgba, Rect::at(0, 0).of_size(width, height), green_bg);
         let dot_color = if timer.is_running() {
-            DOT_COLOR_RUNNING
+            dot_running
         } else {
-            DOT_COLOR_PAUSED
+            dot_paused
         };
         draw_iteration_dots(&mut rgba, display_iterations(timer), width, dot_color);
         return RgbImage::from_fn(width, height, |x, y| {
@@ -627,9 +660,9 @@ fn render_ripen_mode(
 
     // Overlay iteration progress dots
     let dot_color = if timer.is_running() {
-        DOT_COLOR_RUNNING
+        dot_running
     } else {
-        DOT_COLOR_PAUSED
+        dot_paused
     };
     draw_iteration_dots(&mut rgba, display_iterations(timer), width, dot_color);
 

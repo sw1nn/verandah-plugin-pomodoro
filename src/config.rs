@@ -102,6 +102,8 @@ impl ConfigBuilder {
         colors.insert("break_bg".to_string(), "#81c784".to_string()); // Soft mint
         colors.insert("paused_bg".to_string(), "#7f8c8d".to_string()); // Gray
         colors.insert("empty_bg".to_string(), "#2c3e50".to_string()); // Dark blue-gray
+        colors.insert("dot_running".to_string(), "#008000".to_string()); // Dark green
+        colors.insert("dot_paused".to_string(), "#808080".to_string()); // Gray
         colors
     }
 

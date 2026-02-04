@@ -31,11 +31,13 @@ use timer::{Phase, Timer, Transition};
 const WIDGET_TYPE: &str = "pomodoro";
 
 // Default colors used when parsing fails
-const DEFAULT_FG: Rgba<u8> = Rgba([255, 255, 255, 255]); // White
-const DEFAULT_WORK_BG: Rgba<u8> = Rgba([229, 115, 115, 255]); // Soft coral
-const DEFAULT_BREAK_BG: Rgba<u8> = Rgba([129, 199, 132, 255]); // Soft mint
-const DEFAULT_PAUSED_BG: Rgba<u8> = Rgba([127, 140, 141, 255]); // Gray
-const DEFAULT_EMPTY_BG: Rgba<u8> = Rgba([44, 62, 80, 255]); // Dark blue-gray
+const DEFAULT_FG: Rgba<u8> = Rgba([255, 255, 255, 255]); // #FFFFFF White
+const DEFAULT_WORK_BG: Rgba<u8> = Rgba([229, 115, 115, 255]); // #E57373 Soft coral
+const DEFAULT_BREAK_BG: Rgba<u8> = Rgba([129, 199, 132, 255]); // #81C784 Soft mint
+const DEFAULT_PAUSED_BG: Rgba<u8> = Rgba([127, 140, 141, 255]); // #7F8C8D Gray
+const DEFAULT_EMPTY_BG: Rgba<u8> = Rgba([44, 62, 80, 255]); // #2C3E50 Dark blue-gray
+const DEFAULT_DOT_RUNNING: Rgba<u8> = Rgba([0, 128, 0, 255]); // #008000 Dark green
+const DEFAULT_DOT_PAUSED: Rgba<u8> = Rgba([128, 128, 128, 255]); // #808080 Gray
 
 struct PomodoroWidget {
     timer: Timer,
@@ -265,6 +267,8 @@ impl WidgetPlugin for PomodoroWidget {
             get_color(&self.colors, "break_bg", DEFAULT_BREAK_BG),
             get_color(&self.colors, "paused_bg", DEFAULT_PAUSED_BG),
             get_color(&self.colors, "empty_bg", DEFAULT_EMPTY_BG),
+            get_color(&self.colors, "dot_running", DEFAULT_DOT_RUNNING),
+            get_color(&self.colors, "dot_paused", DEFAULT_DOT_PAUSED),
             self.padding,
             paused_icon,
             phase_icon,
