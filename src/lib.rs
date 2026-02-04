@@ -31,13 +31,13 @@ use timer::{Phase, Timer, Transition};
 const WIDGET_TYPE: &str = "pomodoro";
 
 // Default colors used when parsing fails
-const DEFAULT_FG: Rgba<u8> = Rgba([255, 255, 255, 255]); // #FFFFFF White
-const DEFAULT_WORK_BG: Rgba<u8> = Rgba([229, 115, 115, 255]); // #E57373 Soft coral
-const DEFAULT_BREAK_BG: Rgba<u8> = Rgba([129, 199, 132, 255]); // #81C784 Soft mint
-const DEFAULT_PAUSED_BG: Rgba<u8> = Rgba([127, 140, 141, 255]); // #7F8C8D Gray
-const DEFAULT_EMPTY_BG: Rgba<u8> = Rgba([44, 62, 80, 255]); // #2C3E50 Dark blue-gray
-const DEFAULT_DOT_RUNNING: Rgba<u8> = Rgba([0, 128, 0, 255]); // #008000 Dark green
-const DEFAULT_DOT_PAUSED: Rgba<u8> = Rgba([128, 128, 128, 255]); // #808080 Gray
+const DEFAULT_FG: Rgba<u8> = rgb("#FFFFFF");
+const DEFAULT_WORK_BG: Rgba<u8> = rgb("#E57373");
+const DEFAULT_BREAK_BG: Rgba<u8> = rgb("#81C784");
+const DEFAULT_PAUSED_BG: Rgba<u8> = rgb("#7F8C8D");
+const DEFAULT_EMPTY_BG: Rgba<u8> = rgb("#2C3E50");
+const DEFAULT_DOT_RUNNING: Rgba<u8> = rgb("#008000");
+const DEFAULT_DOT_PAUSED: Rgba<u8> = rgb("#808080");
 
 struct PomodoroWidget {
     timer: Timer,
