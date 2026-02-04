@@ -190,13 +190,13 @@ fn render_text_mode(
     // Draw main time (center)
     draw_centered_text_with_reserved(&mut rgba, &time_text, fg_color, padding, 18.0, 18.0, 0.0);
 
-    // Draw iteration progress dots (bottom)
+    // Draw bottom indicator (dots, or remaining time when paused mid-interval)
     let dot_color = if timer.is_running() {
         dot_running
     } else {
         dot_paused
     };
-    draw_iteration_dots(&mut rgba, display_iterations(timer), width, dot_color);
+    draw_bottom_indicator(&mut rgba, timer, width, dot_color);
 
     // Convert to RGB
     RgbImage::from_fn(width, height, |x, y| {
@@ -281,13 +281,13 @@ fn render_fill_bg_mode(
     };
     draw_phase_indicator(&mut rgba, phase_indicator, fg_color, 0.0);
 
-    // Overlay iteration progress dots (bottom)
+    // Overlay bottom indicator (dots, or remaining time when paused mid-interval)
     let dot_color = if timer.is_running() {
         dot_running
     } else {
         dot_paused
     };
-    draw_iteration_dots(&mut rgba, display_iterations(timer), width, dot_color);
+    draw_bottom_indicator(&mut rgba, timer, width, dot_color);
 
     // Apply brightness pulse if paused and enabled
     if !timer.is_running() && pulse_on_pause {
@@ -406,13 +406,13 @@ fn render_fill_icon_mode(
         draw_centered_text_with_reserved(&mut rgba, paused_text, fg_color, 0.1, 18.0, 18.0, 0.0);
     }
 
-    // Overlay iteration progress dots (bottom)
+    // Overlay bottom indicator (dots, or remaining time when paused mid-interval)
     let dot_color = if timer.is_running() {
         dot_running
     } else {
         dot_paused
     };
-    draw_iteration_dots(&mut rgba, display_iterations(timer), width, dot_color);
+    draw_bottom_indicator(&mut rgba, timer, width, dot_color);
 
     // Convert to RGB
     RgbImage::from_fn(width, height, |x, y| {
@@ -532,6 +532,15 @@ fn display_iterations(timer: &Timer) -> u8 {
     }
 }
 
+/// Draw bottom indicator: remaining time when paused mid-interval, dots otherwise
+fn draw_bottom_indicator(rgba: &mut RgbaImage, timer: &Timer, width: u32, color: Rgba<u8>) {
+    if !timer.is_running() && !timer.at_phase_boundary() {
+        draw_remaining_time_bottom(rgba, &timer.remaining_formatted(), width, color);
+    } else {
+        draw_iteration_dots(rgba, display_iterations(timer), width, color);
+    }
+}
+
 /// Draw iteration progress dots at the bottom
 /// `display_iterations` should account for the current phase (work shows +1)
 fn draw_iteration_dots(
@@ -566,6 +575,30 @@ fn draw_iteration_dots(
     let y = (rgba.height() as f32 - line_height - 4.0) as i32; // Small margin from bottom
 
     draw_text_mut(rgba, dot_color, x, y, scale, &font, &dots);
+}
+
+/// Draw remaining time at the bottom of the button
+fn draw_remaining_time_bottom(rgba: &mut RgbaImage, text: &str, width: u32, color: Rgba<u8>) {
+    let Some(font_bytes) = get_system_monospace_font() else {
+        return;
+    };
+    let Ok(font) = FontRef::try_from_slice(font_bytes) else {
+        return;
+    };
+
+    let scale = PxScale::from(24.0);
+    let scaled_font = font.as_scaled(scale);
+    let line_height = scaled_font.height();
+
+    let text_width: f32 = text
+        .chars()
+        .map(|c| scaled_font.h_advance(font.glyph_id(c)))
+        .sum();
+
+    let x = ((width as f32 - text_width) / 2.0).max(0.0) as i32;
+    let y = (rgba.height() as f32 - line_height - 4.0) as i32;
+
+    draw_text_mut(rgba, color, x, y, scale, &font, text);
 }
 
 /// Draw phase indicator at the top
@@ -622,7 +655,7 @@ fn render_ripen_mode(
         } else {
             dot_paused
         };
-        draw_iteration_dots(&mut rgba, display_iterations(timer), width, dot_color);
+        draw_bottom_indicator(&mut rgba, timer, width, dot_color);
         return RgbImage::from_fn(width, height, |x, y| {
             let pixel = rgba.get_pixel(x, y);
             Rgb([pixel[0], pixel[1], pixel[2]])
@@ -658,13 +691,13 @@ fn render_ripen_mode(
         draw_centered_text_with_reserved(&mut rgba, paused_text, fg_color, 0.1, 18.0, 18.0, 0.0);
     }
 
-    // Overlay iteration progress dots
+    // Overlay bottom indicator (dots, or remaining time when paused mid-interval)
     let dot_color = if timer.is_running() {
         dot_running
     } else {
         dot_paused
     };
-    draw_iteration_dots(&mut rgba, display_iterations(timer), width, dot_color);
+    draw_bottom_indicator(&mut rgba, timer, width, dot_color);
 
     RgbImage::from_fn(width, height, |x, y| {
         let pixel = rgba.get_pixel(x, y);
