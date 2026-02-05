@@ -194,16 +194,13 @@ struct OverlayConfig<'a> {
     phase_indicator_display: PhaseIndicatorDisplay,
     /// Text to show centered when paused (e.g., "||")
     paused_text: Option<&'a str>,
-    /// Whether to apply brightness pulse when paused
-    pulse_on_pause: bool,
 }
 
-/// Render common overlay elements (top/bottom indicators, paused text, pulse)
+/// Render common overlay elements (top/bottom indicators, paused text)
 ///
 /// This handles:
 /// - Top indicator: remaining time when paused mid-interval, phase indicator when configured
 /// - Bottom indicator: phase indicator when paused mid-interval and configured, dots otherwise
-/// - Brightness pulse when paused (if enabled)
 /// - Centered paused text when not running (if provided)
 fn render_overlay(rgba: &mut RgbaImage, timer: &Timer, config: &OverlayConfig) {
     let width = rgba.width();
@@ -222,11 +219,6 @@ fn render_overlay(rgba: &mut RgbaImage, timer: &Timer, config: &OverlayConfig) {
         draw_remaining_time_top(rgba, &timer.remaining_formatted(), width, config.fg_color);
     } else if show_phase && let Some(phase) = config.phase_indicator {
         draw_phase_indicator(rgba, phase, config.fg_color, 0.0);
-    }
-
-    // Apply brightness pulse if paused and enabled
-    if !is_running && config.pulse_on_pause {
-        apply_brightness_pulse(rgba);
     }
 
     // Overlay paused text if not running
@@ -385,6 +377,11 @@ fn render_fill_bg_mode(
         draw_filled_rect_mut(&mut rgba, Rect::at(0, 0).of_size(width, height), fill_color);
     }
 
+    // Apply brightness pulse before overlay (if paused and enabled)
+    if !timer.is_running() && pulse_on_pause {
+        apply_brightness_pulse(&mut rgba);
+    }
+
     // Render common overlay elements
     let phase_indicator = get_phase_indicator(timer, phases);
     render_overlay(
@@ -397,7 +394,6 @@ fn render_fill_bg_mode(
             phase_indicator: Some(phase_indicator),
             phase_indicator_display,
             paused_text: Some(paused_text),
-            pulse_on_pause,
         },
     );
 
@@ -500,6 +496,11 @@ fn render_fill_icon_mode(
         }
     }
 
+    // Apply brightness pulse before overlay (if paused and enabled)
+    if !timer.is_running() && pulse_on_pause {
+        apply_brightness_pulse(&mut rgba);
+    }
+
     // Render common overlay elements
     let phase_indicator = get_phase_indicator(timer, phases);
     render_overlay(
@@ -512,7 +513,6 @@ fn render_fill_icon_mode(
             phase_indicator: Some(phase_indicator),
             phase_indicator_display,
             paused_text: Some(paused_text),
-            pulse_on_pause,
         },
     );
 
@@ -800,7 +800,6 @@ fn render_ripen_mode(
                 phase_indicator: Some(phase_indicator),
                 phase_indicator_display,
                 paused_text: None,
-                pulse_on_pause: false,
             },
         );
         return RgbImage::from_fn(width, height, |x, y| {
@@ -828,6 +827,11 @@ fn render_ripen_mode(
         }
     }
 
+    // Apply brightness pulse before overlay (if paused and enabled)
+    if !timer.is_running() && pulse_on_pause {
+        apply_brightness_pulse(&mut rgba);
+    }
+
     // Render common overlay elements
     let phase_indicator = get_phase_indicator(timer, phases);
     render_overlay(
@@ -840,7 +844,6 @@ fn render_ripen_mode(
             phase_indicator: Some(phase_indicator),
             phase_indicator_display,
             paused_text: Some(paused_text),
-            pulse_on_pause,
         },
     );
 
