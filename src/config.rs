@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use serde::Deserialize;
+use strum::VariantNames;
 use toml::Value;
+
+use crate::render::{FillDirection, PhaseIndicatorDisplay, RenderMode};
 
 pub const DEFAULT_WORK_MINS: u64 = 25;
 pub const DEFAULT_SHORT_BREAK_MINS: u64 = 5;
@@ -29,12 +32,12 @@ pub struct Config {
     pub interval: u64,
     /// Text padding as fraction of button size (0.0 to 0.4)
     pub padding: f32,
-    /// Render mode: "text" (default) or "fill_bg"
-    pub render_mode: String,
-    /// Fill direction for fill_bg mode: "empty_to_full" (default) or "full_to_empty"
-    pub fill_direction: String,
-    /// When to display the phase indicator: "none", "running", "paused" (default), or "both"
-    pub phase_indicator_display: String,
+    /// Render mode
+    pub render_mode: RenderMode,
+    /// Fill direction for fill_bg mode
+    pub fill_direction: FillDirection,
+    /// When to display the phase indicator
+    pub phase_indicator_display: PhaseIndicatorDisplay,
     /// Pulse brightness when paused (for icon-based render modes)
     pub pulse_on_pause: bool,
     /// Sound files to play on phase transitions (keys: work, short_break, long_break)
@@ -129,6 +132,20 @@ impl ConfigBuilder {
             tracing::warn!(field = key, "Unknown config field");
         }
 
+        // Clamp zero-duration phases to minimum of 1 minute
+        if self.work == 0 {
+            tracing::warn!("work duration is 0, clamping to 1 minute");
+            self.work = 1;
+        }
+        if self.short_break == 0 {
+            tracing::warn!("short_break duration is 0, clamping to 1 minute");
+            self.short_break = 1;
+        }
+        if self.long_break == 0 {
+            tracing::warn!("long_break duration is 0, clamping to 1 minute");
+            self.long_break = 1;
+        }
+
         // Merge defaults for colors
         for (key, value) in Self::default_colors() {
             self.colors.entry(key).or_insert(value);
@@ -139,6 +156,34 @@ impl ConfigBuilder {
             self.labels.entry(key).or_insert(value);
         }
 
+        let render_mode: RenderMode = self.render_mode.parse().unwrap_or_else(|_| {
+            tracing::warn!(
+                value = self.render_mode,
+                valid = ?RenderMode::VARIANTS,
+                "Unknown render_mode, using default"
+            );
+            RenderMode::default()
+        });
+
+        let fill_direction: FillDirection = self.fill_direction.parse().unwrap_or_else(|_| {
+            tracing::warn!(
+                value = self.fill_direction,
+                valid = ?FillDirection::VARIANTS,
+                "Unknown fill_direction, using default"
+            );
+            FillDirection::default()
+        });
+
+        let phase_indicator_display: PhaseIndicatorDisplay =
+            self.phase_indicator_display.parse().unwrap_or_else(|_| {
+                tracing::warn!(
+                    value = self.phase_indicator_display,
+                    valid = ?PhaseIndicatorDisplay::VARIANTS,
+                    "Unknown phase_indicator_display, using default"
+                );
+                PhaseIndicatorDisplay::default()
+            });
+
         Config {
             work: self.work,
             short_break: self.short_break,
@@ -147,9 +192,9 @@ impl ConfigBuilder {
             auto_start_break: self.auto_start_break,
             interval: self.interval,
             padding: self.padding,
-            render_mode: self.render_mode,
-            fill_direction: self.fill_direction,
-            phase_indicator_display: self.phase_indicator_display,
+            render_mode,
+            fill_direction,
+            phase_indicator_display,
             pulse_on_pause: self.pulse_on_pause,
             sounds: self.sounds,
             phases: self.phases,

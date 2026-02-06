@@ -73,9 +73,9 @@ impl PomodoroWidget {
             last_tick: None,
             colors: parse_colors(&cfg.colors),
             padding: cfg.padding,
-            render_mode: cfg.render_mode.parse().unwrap_or_default(),
-            fill_direction: cfg.fill_direction.parse().unwrap_or_default(),
-            phase_indicator_display: cfg.phase_indicator_display.parse().unwrap_or_default(),
+            render_mode: cfg.render_mode,
+            fill_direction: cfg.fill_direction,
+            phase_indicator_display: cfg.phase_indicator_display,
             pulse_on_pause: cfg.pulse_on_pause,
             phases: cfg.phases,
             labels: cfg.labels,
@@ -133,9 +133,9 @@ impl WidgetPlugin for PomodoroWidget {
         self.interval = PluginDuration::from_millis(cfg.interval);
         self.colors = parse_colors(&cfg.colors);
         self.padding = cfg.padding.clamp(0.0, 0.4);
-        self.render_mode = cfg.render_mode.parse().unwrap_or_default();
-        self.fill_direction = cfg.fill_direction.parse().unwrap_or_default();
-        self.phase_indicator_display = cfg.phase_indicator_display.parse().unwrap_or_default();
+        self.render_mode = cfg.render_mode;
+        self.fill_direction = cfg.fill_direction;
+        self.phase_indicator_display = cfg.phase_indicator_display;
         self.pulse_on_pause = cfg.pulse_on_pause;
         self.phases = cfg.phases;
         self.labels = cfg.labels;
@@ -172,24 +172,26 @@ impl WidgetPlugin for PomodoroWidget {
 
         let now = Instant::now();
 
-        // Tick the timer if running and enough time has passed
+        // Tick the timer for each elapsed second to prevent drift under load
         if let Some(last) = self.last_tick {
-            let elapsed = now.duration_since(last);
-            // Tick once per second
-            if elapsed.as_secs() >= 1 {
-                let transition = self.timer.tick();
+            let elapsed_secs = now.duration_since(last).as_secs();
+            if elapsed_secs >= 1 {
                 self.last_tick = Some(now);
 
-                // Play sound on phase transition
-                // Sound indicates the phase that is STARTING, not the one that ended
-                if transition != Transition::None {
-                    let sound_key = match self.timer.phase() {
-                        Phase::Work => "work",
-                        Phase::ShortBreak => "short_break",
-                        Phase::LongBreak => "long_break",
-                    };
-                    if let Some(path) = self.sounds.get(sound_key) {
-                        sound::play_sound(path);
+                for _ in 0..elapsed_secs {
+                    let transition = self.timer.tick();
+
+                    // Play sound on phase transition
+                    // Sound indicates the phase that is STARTING, not the one that ended
+                    if transition != Transition::None {
+                        let sound_key = match self.timer.phase() {
+                            Phase::Work => "work",
+                            Phase::ShortBreak => "short_break",
+                            Phase::LongBreak => "long_break",
+                        };
+                        if let Some(path) = self.sounds.get(sound_key) {
+                            sound::play_sound(path);
+                        }
                     }
                 }
             }

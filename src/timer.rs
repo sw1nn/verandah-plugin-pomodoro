@@ -147,6 +147,7 @@ impl Timer {
         self.phase = Phase::Work;
         self.elapsed_secs = 0;
         self.iterations = 0;
+        self.sessions_completed = 0;
         self.running = false;
     }
 

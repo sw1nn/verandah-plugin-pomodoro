@@ -95,17 +95,8 @@ fn find_sound_in_dir(dir: &Path, name: &str) -> Option<PathBuf> {
         return None;
     }
 
-    // Try with each extension
-    for ext in SOUND_EXTENSIONS {
-        let path = dir.join(format!("{name}.{ext}"));
-        if path.exists() {
-            return Some(path);
-        }
-    }
-
-    // Try in freedesktop theme structure (theme/category/sound)
-    // Common categories: stereo, 5.1
-    for category in &["stereo", ""] {
+    // Try with each extension, both at the root and in freedesktop theme categories
+    for category in &["", "stereo"] {
         for ext in SOUND_EXTENSIONS {
             let path = if category.is_empty() {
                 dir.join(format!("{name}.{ext}"))

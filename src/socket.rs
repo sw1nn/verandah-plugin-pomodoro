@@ -2,7 +2,7 @@ use std::{
     fs,
     io::Read,
     os::unix::net::{UnixListener, UnixStream},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -100,8 +100,14 @@ impl SocketListener {
         let socket_path = get_socket_path()
             .ok_or_else(|| std::io::Error::other("Failed to determine XDG runtime directory"))?;
 
-        // Remove existing socket if present
+        // Check if an existing socket is in use by another instance
         if socket_path.exists() {
+            if UnixStream::connect(&socket_path).is_ok() {
+                return Err(std::io::Error::other(
+                    "Another pomodoro instance is already running",
+                ));
+            }
+            // Stale socket from a crashed process, safe to remove
             fs::remove_file(&socket_path)?;
         }
 
@@ -129,7 +135,7 @@ impl SocketListener {
         listener: UnixListener,
         tx: Sender<Command>,
         shutdown: Arc<AtomicBool>,
-        socket_path: &PathBuf,
+        socket_path: &Path,
     ) {
         while !shutdown.load(Ordering::Relaxed) {
             match listener.accept() {

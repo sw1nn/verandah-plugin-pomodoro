@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ab_glyph::{Font, FontRef, PxScale, ScaleFont};
-use image::{Rgb, RgbImage, Rgba, RgbaImage};
+use image::{DynamicImage, Rgb, RgbImage, Rgba, RgbaImage};
 use imageproc::drawing::{draw_filled_rect_mut, draw_text_mut};
 use imageproc::rect::Rect;
 use strum::{AsRefStr, EnumString, VariantNames};
@@ -9,6 +9,11 @@ use verandah_plugin_api::prelude::PluginImage;
 use verandah_plugin_utils::prelude::*;
 
 use crate::timer::{Phase, Timer};
+
+/// Convert an RgbaImage to an RgbImage, discarding the alpha channel
+fn rgba_to_rgb(rgba: RgbaImage) -> RgbImage {
+    DynamicImage::ImageRgba8(rgba).into_rgb8()
+}
 
 /// Render mode for the timer display
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, EnumString, AsRefStr, VariantNames)]
@@ -218,7 +223,7 @@ fn render_overlay(rgba: &mut RgbaImage, timer: &Timer, config: &OverlayConfig) {
     if is_paused_mid_interval {
         draw_remaining_time_top(rgba, &timer.remaining_formatted(), width, config.fg_color);
     } else if show_phase && let Some(phase) = config.phase_indicator {
-        draw_phase_indicator(rgba, phase, config.fg_color, 0.0);
+        draw_phase_indicator(rgba, phase, config.fg_color);
     }
 
     // Overlay paused text if not running
@@ -259,12 +264,8 @@ fn render_text_mode(
 ) -> RgbImage {
     let mut rgba = RgbaImage::new(width, height);
 
-    let is_running = timer.is_running();
-    let is_paused_mid_interval = !is_running && !timer.at_phase_boundary();
-    let show_phase = phase_indicator_display.should_show(is_running);
-
     // Determine background color based on state
-    let bg = if !is_running {
+    let bg = if !timer.is_running() {
         paused_bg
     } else if timer.phase().is_break() {
         break_bg
@@ -275,43 +276,31 @@ fn render_text_mode(
     // Fill background
     draw_filled_rect_mut(&mut rgba, Rect::at(0, 0).of_size(width, height), bg);
 
-    // Build display text - show paused_text when paused mid-interval
-    let time_text = if !is_running {
+    // Draw main centered text: paused_text when not running, remaining time when running
+    let time_text = if !timer.is_running() {
         paused_text.to_string()
     } else {
         timer.remaining_formatted()
     };
-
-    let phase_indicator = get_phase_indicator(timer, phases);
-    let dot_color = if is_running { dot_running } else { dot_paused };
-
-    // Top indicator: remaining time when paused mid-interval, phase indicator when configured
-    if is_paused_mid_interval {
-        draw_remaining_time_top(&mut rgba, &timer.remaining_formatted(), width, fg_color);
-    } else if show_phase {
-        draw_phase_indicator(&mut rgba, phase_indicator, fg_color, padding);
-    }
-
-    // Draw main time (center)
     draw_centered_text_with_reserved(&mut rgba, &time_text, fg_color, padding, 18.0, 18.0, 0.0);
 
-    // Draw bottom indicator (phase when paused mid-interval and configured, dots otherwise)
-    let show_phase_bottom = is_paused_mid_interval && phase_indicator_display.should_show(false);
-    draw_bottom_indicator(
+    // Render common overlay elements (top/bottom indicators)
+    // paused_text is None because the centered text above already serves that purpose
+    let phase_indicator = get_phase_indicator(timer, phases);
+    render_overlay(
         &mut rgba,
         timer,
-        width,
-        fg_color,
-        dot_color,
-        Some(phase_indicator),
-        show_phase_bottom,
+        &OverlayConfig {
+            fg_color,
+            dot_running,
+            dot_paused,
+            phase_indicator: Some(phase_indicator),
+            phase_indicator_display,
+            paused_text: None,
+        },
     );
 
-    // Convert to RGB
-    RgbImage::from_fn(width, height, |x, y| {
-        let pixel = rgba.get_pixel(x, y);
-        Rgb([pixel[0], pixel[1], pixel[2]])
-    })
+    rgba_to_rgb(rgba)
 }
 
 /// Render filling-bucket mode with progress fill
@@ -397,11 +386,7 @@ fn render_fill_bg_mode(
         },
     );
 
-    // Convert to RGB
-    RgbImage::from_fn(width, height, |x, y| {
-        let pixel = rgba.get_pixel(x, y);
-        Rgb([pixel[0], pixel[1], pixel[2]])
-    })
+    rgba_to_rgb(rgba)
 }
 
 /// Render fill-icon mode: fills an icon from bottom to top (or vice versa)
@@ -428,8 +413,9 @@ fn render_fill_icon_mode(
 
     // If no icon available, fall back to fill_bg mode
     let Some(icon) = phase_icon else {
-        static WARNED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-        if !WARNED.swap(true, std::sync::atomic::Ordering::Relaxed) {
+        static FILL_ICON_NO_ICON_WARNED: std::sync::atomic::AtomicBool =
+            std::sync::atomic::AtomicBool::new(false);
+        if !FILL_ICON_NO_ICON_WARNED.swap(true, std::sync::atomic::Ordering::Relaxed) {
             tracing::warn!(
                 "fill_icon mode configured but no icon available, falling back to fill_bg"
             );
@@ -516,11 +502,7 @@ fn render_fill_icon_mode(
         },
     );
 
-    // Convert to RGB
-    RgbImage::from_fn(width, height, |x, y| {
-        let pixel = rgba.get_pixel(x, y);
-        Rgb([pixel[0], pixel[1], pixel[2]])
-    })
+    rgba_to_rgb(rgba)
 }
 
 /// Render fallback text when paused at phase boundary and no icon is available
@@ -562,10 +544,7 @@ fn render_paused_text(
         }
     }
 
-    RgbImage::from_fn(width, height, |x, y| {
-        let pixel = rgba.get_pixel(x, y);
-        Rgb([pixel[0], pixel[1], pixel[2]])
-    })
+    rgba_to_rgb(rgba)
 }
 
 /// Render an icon image, scaling to fit the button
@@ -615,10 +594,7 @@ fn render_icon_with_dots(
 
     draw_iteration_dots(&mut rgba, display_iters, width, dot_color);
 
-    RgbImage::from_fn(width, height, |x, y| {
-        let pixel = rgba.get_pixel(x, y);
-        Rgb([pixel[0], pixel[1], pixel[2]])
-    })
+    rgba_to_rgb(rgba)
 }
 
 /// Calculate display iterations: dots fill when work STARTS (not ends)
@@ -713,7 +689,7 @@ fn draw_remaining_time_top(rgba: &mut RgbaImage, text: &str, width: u32, color: 
 }
 
 /// Draw phase indicator at the top
-fn draw_phase_indicator(rgba: &mut RgbaImage, text: &str, fg_color: Rgba<u8>, _padding: f32) {
+fn draw_phase_indicator(rgba: &mut RgbaImage, text: &str, fg_color: Rgba<u8>) {
     let Some(font_bytes) = get_system_monospace_font() else {
         return;
     };
@@ -782,8 +758,9 @@ fn render_ripen_mode(
 
     // If no icon available, show a simple colored background
     let Some(icon) = phase_icon else {
-        static WARNED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-        if !WARNED.swap(true, std::sync::atomic::Ordering::Relaxed) {
+        static RIPEN_NO_ICON_WARNED: std::sync::atomic::AtomicBool =
+            std::sync::atomic::AtomicBool::new(false);
+        if !RIPEN_NO_ICON_WARNED.swap(true, std::sync::atomic::Ordering::Relaxed) {
             tracing::warn!("ripen mode configured but no icon available");
         }
         // Just show a green-ish background
@@ -802,10 +779,7 @@ fn render_ripen_mode(
                 paused_text: None,
             },
         );
-        return RgbImage::from_fn(width, height, |x, y| {
-            let pixel = rgba.get_pixel(x, y);
-            Rgb([pixel[0], pixel[1], pixel[2]])
-        });
+        return rgba_to_rgb(rgba);
     };
 
     // Render the icon
@@ -847,10 +821,7 @@ fn render_ripen_mode(
         },
     );
 
-    RgbImage::from_fn(width, height, |x, y| {
-        let pixel = rgba.get_pixel(x, y);
-        Rgb([pixel[0], pixel[1], pixel[2]])
-    })
+    rgba_to_rgb(rgba)
 }
 
 /// Shift a pixel's hue towards green (120°) by the given factor (0.0 = no shift, 1.0 = full shift)
@@ -894,11 +865,9 @@ fn shift_hue_towards_green(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u8) {
         }
     };
 
-    // Calculate shortest path to green on the hue circle (branchless)
+    // Calculate shortest path to green on the hue circle
     let raw_diff = GREEN_HUE - h;
     let diff = raw_diff - 360.0 * (raw_diff / 360.0 + 0.5).floor();
-    let diff =
-        diff + 360.0 * ((diff < -180.0) as i32 as f32) - 360.0 * ((diff > 180.0) as i32 as f32);
 
     // Shift hue towards green, blend with original based on factor
     let new_h = (h + diff * factor).rem_euclid(360.0);
