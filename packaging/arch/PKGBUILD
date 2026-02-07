@@ -1,7 +1,7 @@
 # Maintainer: sw1nn <git@sw1nn.com>
 
 pkgname=verandah-plugin-pomodoro
-pkgver=0.14.1
+pkgver=0.14.2
 pkgrel=1
 pkgdesc='Pomodoro timer plugin for verandah Stream Deck daemon'
 arch=('x86_64')

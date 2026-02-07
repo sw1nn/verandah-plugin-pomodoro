@@ -2309,6 +2309,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 
 [[package]]
+name = "verandah-plugin"
+version = "0.1.0"
+source = "git+https://github.com/sw1nn/verandah-plugin.git?tag=v1.0.0#596baa58c34aadbb46d18d67cc0b230eed58ec14"
+dependencies = [
+ "verandah-plugin-api",
+ "verandah-plugin-utils",
+]
+
+[[package]]
 name = "verandah-plugin-api"
 version = "0.1.0"
 source = "git+https://github.com/sw1nn/verandah-plugin-api.git?tag=v0.2.0#35f241fc56a31dbc19cfa6fec459fe9120f95ae9"
@@ -2322,7 +2331,7 @@ dependencies = [
 
 [[package]]
 name = "verandah-plugin-pomodoro"
-version = "0.14.1"
+version = "0.14.2"
 dependencies = [
  "ab_glyph",
  "abi_stable",
@@ -2336,8 +2345,7 @@ dependencies = [
  "strum",
  "toml",
  "tracing",
- "verandah-plugin-api",
- "verandah-plugin-utils",
+ "verandah-plugin",
  "xdg",
 ]
 

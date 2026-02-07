@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.14.2 - 2026-02-07
+#### Bug Fixes
+- address code review findings across multiple modules - (0fecc3c) - Neale Swinnerton
+#### Refactoring
+- replace verandah-plugin-{api,utils} deps with verandah-plugin facade crate - (bafc237) - Neale Swinnerton
+
+- - -
+
 ## v0.14.1 - 2026-02-05
 #### Bug Fixes
 - (**render**) apply brightness pulse before overlay to prevent text pulsing - (3ede10f) - Neale Swinnerton
