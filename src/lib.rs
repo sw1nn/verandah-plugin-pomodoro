@@ -10,8 +10,8 @@ use std::collections::HashMap;
 use std::sync::mpsc::Receiver;
 use std::time::Instant;
 
-use verandah_plugin_api::prelude::*;
-use verandah_plugin_utils::prelude::*;
+use verandah_plugin::api::prelude::*;
+use verandah_plugin::utils::prelude::*;
 
 use std::path::PathBuf;
 

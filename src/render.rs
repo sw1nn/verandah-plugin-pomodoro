@@ -5,8 +5,8 @@ use image::{DynamicImage, Rgb, RgbImage, Rgba, RgbaImage};
 use imageproc::drawing::{draw_filled_rect_mut, draw_text_mut};
 use imageproc::rect::Rect;
 use strum::{AsRefStr, EnumString, VariantNames};
-use verandah_plugin_api::prelude::PluginImage;
-use verandah_plugin_utils::prelude::*;
+use verandah_plugin::api::prelude::*;
+use verandah_plugin::utils::prelude::*;
 
 use crate::timer::{Phase, Timer};
 
