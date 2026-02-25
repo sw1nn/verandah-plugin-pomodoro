@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.14.3 - 2026-02-25
+#### Refactoring
+- consolidate deps through verandah-plugin v1.3.0 facade - (5057e1e) - Neale Swinnerton
+
+- - -
+
 ## v0.14.2 - 2026-02-07
 #### Bug Fixes
 - address code review findings across multiple modules - (0fecc3c) - Neale Swinnerton
