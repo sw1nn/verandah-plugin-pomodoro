@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
+use derive_more::Debug;
 use serde::Deserialize;
 use strum::VariantNames;
-use toml::Value;
+use verandah_plugin::utils::prelude::*;
 
 use crate::render::{FillDirection, PhaseIndicatorDisplay, RenderMode};
 
@@ -52,7 +53,7 @@ pub struct Config {
 }
 
 /// Builder for Config that deserializes from TOML and applies defaults
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(default)]
 pub struct ConfigBuilder {
     work: u64,
@@ -76,7 +77,8 @@ pub struct ConfigBuilder {
     colors: HashMap<String, String>,
     /// Catch-all for unknown fields (logged as warnings in build())
     #[serde(flatten)]
-    unknown: HashMap<String, Value>,
+    #[debug(skip)]
+    unknown: HashMap<String, IgnoredValue>,
 }
 
 impl Default for ConfigBuilder {
@@ -238,7 +240,7 @@ work_bg = "#ff0000"
 [sounds]
 work = "bell.wav"
 "##;
-        let cfg: Config = toml::from_str::<ConfigBuilder>(toml_str).unwrap().build();
+        let cfg: Config = verandah_plugin::api::toml::from_str::<ConfigBuilder>(toml_str)?.build();
         assert_eq!(cfg.work, 30);
         assert_eq!(cfg.short_break, 10);
         assert!(cfg.auto_start_work);
@@ -256,7 +258,7 @@ work = "bell.wav"
 work = 25
 colors = { fg = "#ffffff", work_bg = "#e57373" }
 "##;
-        let cfg: Config = toml::from_str::<ConfigBuilder>(toml_str).unwrap().build();
+        let cfg: Config = verandah_plugin::api::toml::from_str::<ConfigBuilder>(toml_str)?.build();
         assert_eq!(cfg.work, 25);
         assert_eq!(cfg.colors.get("fg"), Some(&"#ffffff".to_string()));
         assert_eq!(cfg.colors.get("work_bg"), Some(&"#e57373".to_string()));
@@ -269,7 +271,7 @@ colors = { fg = "#ffffff", work_bg = "#e57373" }
 [colors]
 fg = "#000000"
 "##;
-        let cfg: Config = toml::from_str::<ConfigBuilder>(toml_str).unwrap().build();
+        let cfg: Config = verandah_plugin::api::toml::from_str::<ConfigBuilder>(toml_str)?.build();
         // User-specified value should be preserved
         assert_eq!(cfg.colors.get("fg"), Some(&"#000000".to_string()));
         // Defaults should be filled in for unspecified keys
@@ -285,7 +287,7 @@ fg = "#000000"
 [labels]
 work = "WORK"
 "##;
-        let cfg: Config = toml::from_str::<ConfigBuilder>(toml_str).unwrap().build();
+        let cfg: Config = verandah_plugin::api::toml::from_str::<ConfigBuilder>(toml_str)?.build();
         // User-specified value should be preserved
         assert_eq!(cfg.labels.get("work"), Some(&"WORK".to_string()));
         // Default should be filled in
@@ -300,7 +302,7 @@ work = 25
 unknown_field = "value"
 another_unknown = 42
 "##;
-        let builder: ConfigBuilder = toml::from_str(toml_str).unwrap();
+        let builder: ConfigBuilder = verandah_plugin::api::toml::from_str(toml_str)?;
         // Unknown fields should be captured in the builder
         assert!(builder.unknown.contains_key("unknown_field"));
         assert!(builder.unknown.contains_key("another_unknown"));

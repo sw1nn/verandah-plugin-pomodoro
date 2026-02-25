@@ -13,20 +13,14 @@ name = "verandah-pomodoroctl"
 path = "src/bin/pomodoroctl.rs"
 
 [dependencies]
-verandah-plugin = { git = "https://github.com/sw1nn/verandah-plugin.git", tag = "v1.0.0" }
-toml = "0.9"
+verandah-plugin = { git = "https://github.com/sw1nn/verandah-plugin.git", tag = "v1.3.0" }
 abi_stable = "0.11"
 serde = { version = "1", features = ["derive"] }
 tracing = "0.1"
-derive_more = { version = "2", features = ["from", "display"] }
+derive_more = { version = "2", features = ["from", "display", "debug"] }
 strum = { version = "0.27", features = ["derive"] }
 xdg = "2"
 clap = { version = "4", features = ["derive"] }
-
-# Rendering
-image = "0.25"
-imageproc = "0.25"
-ab_glyph = "0.2"
 
 # Audio
 rodio = { version = "0.19", default-features = false, features = [

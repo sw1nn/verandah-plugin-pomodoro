@@ -1,19 +1,10 @@
 use std::collections::HashMap;
 
-use ab_glyph::{Font, FontRef, PxScale, ScaleFont};
-use image::{DynamicImage, Rgb, RgbImage, Rgba, RgbaImage};
-use imageproc::drawing::{draw_filled_rect_mut, draw_text_mut};
-use imageproc::rect::Rect;
 use strum::{AsRefStr, EnumString, VariantNames};
 use verandah_plugin::api::prelude::*;
 use verandah_plugin::utils::prelude::*;
 
 use crate::timer::{Phase, Timer};
-
-/// Convert an RgbaImage to an RgbImage, discarding the alpha channel
-fn rgba_to_rgb(rgba: RgbaImage) -> RgbImage {
-    DynamicImage::ImageRgba8(rgba).into_rgb8()
-}
 
 /// Render mode for the timer display
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, EnumString, AsRefStr, VariantNames)]
@@ -221,9 +212,11 @@ fn render_overlay(rgba: &mut RgbaImage, timer: &Timer, config: &OverlayConfig) {
 
     // Top indicator: remaining time when paused mid-interval, phase indicator when configured
     if is_paused_mid_interval {
-        draw_remaining_time_top(rgba, &timer.remaining_formatted(), width, config.fg_color);
+        // Remaining time at top (24px, 4px top margin)
+        draw_text_hcentered(rgba, &timer.remaining_formatted(), config.fg_color, 24.0, 4);
     } else if show_phase && let Some(phase) = config.phase_indicator {
-        draw_phase_indicator(rgba, phase, config.fg_color);
+        // Phase indicator at top (14px, 4px top margin)
+        draw_text_hcentered(rgba, phase, config.fg_color, 14.0, 4);
     }
 
     // Overlay paused text if not running
@@ -300,7 +293,7 @@ fn render_text_mode(
         },
     );
 
-    rgba_to_rgb(rgba)
+    rgba_to_rgb(&rgba)
 }
 
 /// Render filling-bucket mode with progress fill
@@ -386,7 +379,7 @@ fn render_fill_bg_mode(
         },
     );
 
-    rgba_to_rgb(rgba)
+    rgba_to_rgb(&rgba)
 }
 
 /// Render fill-icon mode: fills an icon from bottom to top (or vice versa)
@@ -409,8 +402,6 @@ fn render_fill_icon_mode(
     dot_running: Rgba<u8>,
     dot_paused: Rgba<u8>,
 ) -> RgbImage {
-    let mut rgba = RgbaImage::new(width, height);
-
     // If no icon available, fall back to fill_bg mode
     let Some(icon) = phase_icon else {
         static FILL_ICON_NO_ICON_WARNED: std::sync::atomic::AtomicBool =
@@ -438,16 +429,9 @@ fn render_fill_icon_mode(
         );
     };
 
-    // First, render the full icon
+    // First, render the full icon and convert to rgba
     let icon_rgb = render_icon(icon, width, height);
-
-    // Copy icon to rgba buffer
-    for y in 0..height {
-        for x in 0..width {
-            let pixel = icon_rgb.get_pixel(x, y);
-            rgba.put_pixel(x, y, Rgba([pixel[0], pixel[1], pixel[2], 255]));
-        }
-    }
+    let mut rgba = rgb_to_rgba(&icon_rgb);
 
     // Calculate progress
     let progress = timer.progress_ratio();
@@ -502,7 +486,7 @@ fn render_fill_icon_mode(
         },
     );
 
-    rgba_to_rgb(rgba)
+    rgba_to_rgb(&rgba)
 }
 
 /// Render fallback text when paused at phase boundary and no icon is available
@@ -517,64 +501,15 @@ fn render_paused_text(
     let mut rgba = RgbaImage::new(width, height);
 
     draw_filled_rect_mut(&mut rgba, Rect::at(0, 0).of_size(width, height), bg_color);
+    draw_centered_text(&mut rgba, text, fg_color, padding);
 
-    if let Some(font_bytes) = get_system_monospace_font()
-        && let Ok(font) = FontRef::try_from_slice(font_bytes)
-    {
-        let lines: Vec<&str> = text.lines().collect();
-        let content_fraction = 1.0 - (2.0 * padding);
-        let target_width = width as f32 * content_fraction;
-        let target_height = height as f32 * content_fraction;
-        let scale_value = find_optimal_scale(&font, &lines, target_width, target_height);
-        let scale = PxScale::from(scale_value);
-
-        let scaled_font = font.as_scaled(scale);
-        let line_height = scaled_font.height();
-        let total_height = line_height * lines.len() as f32;
-        let start_y = (height as f32 - total_height) / 2.0;
-
-        for (i, line) in lines.iter().enumerate() {
-            let text_width: f32 = line
-                .chars()
-                .map(|c| scaled_font.h_advance(font.glyph_id(c)))
-                .sum();
-            let x = ((width as f32 - text_width) / 2.0).max(0.0) as i32;
-            let y = (start_y + line_height * i as f32) as i32;
-            draw_text_mut(&mut rgba, fg_color, x, y, scale, &font, line);
-        }
-    }
-
-    rgba_to_rgb(rgba)
+    rgba_to_rgb(&rgba)
 }
 
 /// Render an icon image, scaling to fit the button
 fn render_icon(icon: &PluginImage, width: u32, height: u32) -> RgbImage {
-    if icon.width == width && icon.height == height {
-        return RgbImage::from_fn(width, height, |x, y| {
-            let idx = ((y * width + x) * 3) as usize;
-            if idx + 2 < icon.data.len() {
-                Rgb([icon.data[idx], icon.data[idx + 1], icon.data[idx + 2]])
-            } else {
-                Rgb([0, 0, 0])
-            }
-        });
-    }
-
-    let src_img = RgbImage::from_fn(icon.width, icon.height, |x, y| {
-        let idx = ((y * icon.width + x) * 3) as usize;
-        if idx + 2 < icon.data.len() {
-            Rgb([icon.data[idx], icon.data[idx + 1], icon.data[idx + 2]])
-        } else {
-            Rgb([0, 0, 0])
-        }
-    });
-
-    image::imageops::resize(
-        &src_img,
-        width,
-        height,
-        image::imageops::FilterType::Lanczos3,
-    )
+    let src_img = bytes_to_rgb(icon.width, icon.height, &icon.data);
+    scale_image(&src_img, width, height)
 }
 
 /// Render an icon image with iteration dots overlay (used when paused at phase boundary)
@@ -586,15 +521,11 @@ fn render_icon_with_dots(
     dot_color: Rgba<u8>,
 ) -> RgbImage {
     let rgb = render_icon(icon, width, height);
-
-    let mut rgba = RgbaImage::from_fn(width, height, |x, y| {
-        let pixel = rgb.get_pixel(x, y);
-        Rgba([pixel[0], pixel[1], pixel[2], 255])
-    });
+    let mut rgba = rgb_to_rgba(&rgb);
 
     draw_iteration_dots(&mut rgba, display_iters, width, dot_color);
 
-    rgba_to_rgb(rgba)
+    rgba_to_rgb(&rgba)
 }
 
 /// Calculate display iterations: dots fill when work STARTS (not ends)
@@ -622,7 +553,9 @@ fn draw_bottom_indicator(
 ) {
     if show_phase_indicator {
         if let Some(phase) = phase_indicator {
-            draw_phase_indicator_bottom(rgba, phase, fg_color);
+            // Phase indicator at bottom (14px, 4px bottom margin)
+            let y = rgba.height() as i32 - 18;
+            draw_text_hcentered(rgba, phase, fg_color, 14.0, y);
         }
     } else {
         draw_iteration_dots(rgba, display_iterations(timer), width, dot_color);
@@ -634,109 +567,16 @@ fn draw_bottom_indicator(
 fn draw_iteration_dots(
     rgba: &mut RgbaImage,
     display_iterations: u8,
-    width: u32,
+    _width: u32,
     dot_color: Rgba<u8>,
 ) {
-    let Some(font_bytes) = get_system_monospace_font() else {
-        return;
-    };
-    let Ok(font) = FontRef::try_from_slice(font_bytes) else {
-        return;
-    };
-
     // Build dots string: filled for active/completed, empty for remaining
     let dots: String = (0..4)
         .map(|i| if i < display_iterations { '●' } else { '○' })
         .collect();
 
-    let scale = PxScale::from(18.0);
-    let scaled_font = font.as_scaled(scale);
-    let line_height = scaled_font.height();
-
-    // Calculate width for centering
-    let text_width: f32 = dots
-        .chars()
-        .map(|c| scaled_font.h_advance(font.glyph_id(c)))
-        .sum();
-
-    let x = ((width as f32 - text_width) / 2.0).max(0.0) as i32;
-    let y = (rgba.height() as f32 - line_height - 4.0) as i32; // Small margin from bottom
-
-    draw_text_mut(rgba, dot_color, x, y, scale, &font, &dots);
-}
-
-/// Draw remaining time at the top of the button
-fn draw_remaining_time_top(rgba: &mut RgbaImage, text: &str, width: u32, color: Rgba<u8>) {
-    let Some(font_bytes) = get_system_monospace_font() else {
-        return;
-    };
-    let Ok(font) = FontRef::try_from_slice(font_bytes) else {
-        return;
-    };
-
-    let scale = PxScale::from(24.0);
-    let scaled_font = font.as_scaled(scale);
-
-    let text_width: f32 = text
-        .chars()
-        .map(|c| scaled_font.h_advance(font.glyph_id(c)))
-        .sum();
-
-    let x = ((width as f32 - text_width) / 2.0).max(0.0) as i32;
-    let y = 4; // 4px margin from top
-
-    draw_text_mut(rgba, color, x, y, scale, &font, text);
-}
-
-/// Draw phase indicator at the top
-fn draw_phase_indicator(rgba: &mut RgbaImage, text: &str, fg_color: Rgba<u8>) {
-    let Some(font_bytes) = get_system_monospace_font() else {
-        return;
-    };
-    let Ok(font) = FontRef::try_from_slice(font_bytes) else {
-        return;
-    };
-
-    let width = rgba.width();
-
-    let scale = PxScale::from(14.0);
-    let scaled_font = font.as_scaled(scale);
-
-    let text_width: f32 = text
-        .chars()
-        .map(|c| scaled_font.h_advance(font.glyph_id(c)))
-        .sum();
-
-    let x = ((width as f32 - text_width) / 2.0).max(0.0) as i32;
-    let y = 4; // 4px margin from top
-
-    draw_text_mut(rgba, fg_color, x, y, scale, &font, text);
-}
-
-/// Draw phase indicator at the bottom
-fn draw_phase_indicator_bottom(rgba: &mut RgbaImage, text: &str, fg_color: Rgba<u8>) {
-    let Some(font_bytes) = get_system_monospace_font() else {
-        return;
-    };
-    let Ok(font) = FontRef::try_from_slice(font_bytes) else {
-        return;
-    };
-
-    let width = rgba.width();
-
-    let scale = PxScale::from(14.0);
-    let scaled_font = font.as_scaled(scale);
-    let line_height = scaled_font.height();
-
-    let text_width: f32 = text
-        .chars()
-        .map(|c| scaled_font.h_advance(font.glyph_id(c)))
-        .sum();
-
-    let x = ((width as f32 - text_width) / 2.0).max(0.0) as i32;
-    let y = (rgba.height() as f32 - line_height - 4.0) as i32;
-
-    draw_text_mut(rgba, fg_color, x, y, scale, &font, text);
+    let y = rgba.height() as i32 - 22; // 18px scale + ~4px margin from bottom
+    draw_text_hcentered(rgba, &dots, dot_color, 18.0, y);
 }
 
 /// Render ripen mode: icon starts green (unripe) and gradually returns to original colors
@@ -779,7 +619,7 @@ fn render_ripen_mode(
                 paused_text: None,
             },
         );
-        return rgba_to_rgb(rgba);
+        return rgba_to_rgb(&rgba);
     };
 
     // Render the icon
@@ -821,7 +661,7 @@ fn render_ripen_mode(
         },
     );
 
-    rgba_to_rgb(rgba)
+    rgba_to_rgb(&rgba)
 }
 
 /// Shift a pixel's hue towards green (120°) by the given factor (0.0 = no shift, 1.0 = full shift)

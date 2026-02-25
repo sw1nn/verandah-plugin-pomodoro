@@ -216,7 +216,7 @@ impl Timer {
 mod tests {
     use super::*;
 
-    fn test_config() -> Config {
+    fn test_config() -> crate::error::Result<Config> {
         use crate::config::ConfigBuilder;
         let toml_str = r#"
 work = 1
@@ -225,12 +225,12 @@ long_break = 1
 auto_start_work = false
 auto_start_break = false
 "#;
-        toml::from_str::<ConfigBuilder>(toml_str).unwrap().build()
+        Ok(verandah_plugin::api::toml::from_str::<ConfigBuilder>(toml_str)?.build())
     }
 
     #[test]
     fn test_new_timer() -> crate::error::Result<()> {
-        let timer = Timer::new(&test_config());
+        let timer = Timer::new(&test_config()?);
         assert_eq!(timer.phase(), Phase::Work);
         assert!(!timer.is_running());
         assert_eq!(timer.iterations(), 0);
@@ -240,7 +240,7 @@ auto_start_break = false
 
     #[test]
     fn test_toggle() -> crate::error::Result<()> {
-        let mut timer = Timer::new(&test_config());
+        let mut timer = Timer::new(&test_config()?);
         assert!(!timer.is_running());
         timer.toggle();
         assert!(timer.is_running());
@@ -252,9 +252,8 @@ auto_start_break = false
     #[test]
     fn test_remaining_formatted() -> crate::error::Result<()> {
         use crate::config::ConfigBuilder;
-        let config: Config = toml::from_str::<ConfigBuilder>("work = 25")
-            .unwrap()
-            .build();
+        let config: Config =
+            verandah_plugin::api::toml::from_str::<ConfigBuilder>("work = 25")?.build();
         let timer = Timer::new(&config);
         assert_eq!(timer.remaining_formatted(), "25:00");
         Ok(())
@@ -262,7 +261,7 @@ auto_start_break = false
 
     #[test]
     fn test_tick_advances_time() -> crate::error::Result<()> {
-        let mut timer = Timer::new(&test_config());
+        let mut timer = Timer::new(&test_config()?);
         timer.start();
         let remaining_before = timer.remaining_secs();
         timer.tick();
@@ -272,7 +271,7 @@ auto_start_break = false
 
     #[test]
     fn test_work_to_short_break_transition() -> crate::error::Result<()> {
-        let mut timer = Timer::new(&test_config());
+        let mut timer = Timer::new(&test_config()?);
         timer.start();
 
         // Run through work phase (60 seconds)
@@ -296,7 +295,8 @@ long_break = 1
 auto_start_work = true
 auto_start_break = true
 "#;
-        let config: Config = toml::from_str::<ConfigBuilder>(toml_str).unwrap().build();
+        let config: Config =
+            verandah_plugin::api::toml::from_str::<ConfigBuilder>(toml_str)?.build();
         let mut timer = Timer::new(&config);
         timer.start();
 
@@ -320,7 +320,8 @@ auto_start_break = true
 work = 1
 auto_start_break = true
 "#;
-        let config: Config = toml::from_str::<ConfigBuilder>(toml_str).unwrap().build();
+        let config: Config =
+            verandah_plugin::api::toml::from_str::<ConfigBuilder>(toml_str)?.build();
         let mut timer = Timer::new(&config);
         timer.start();
 
@@ -342,7 +343,7 @@ auto_start_break = true
 
     #[test]
     fn test_skip() -> crate::error::Result<()> {
-        let mut timer = Timer::new(&test_config());
+        let mut timer = Timer::new(&test_config()?);
         timer.start();
         assert_eq!(timer.phase(), Phase::Work);
 
@@ -358,7 +359,7 @@ auto_start_break = true
 
     #[test]
     fn test_skip_while_paused_at_boundary_does_nothing() -> crate::error::Result<()> {
-        let mut timer = Timer::new(&test_config());
+        let mut timer = Timer::new(&test_config()?);
         assert!(!timer.is_running());
         assert!(timer.at_phase_boundary());
         assert_eq!(timer.phase(), Phase::Work);
@@ -371,7 +372,7 @@ auto_start_break = true
 
     #[test]
     fn test_skip_while_paused_mid_interval_works() -> crate::error::Result<()> {
-        let mut timer = Timer::new(&test_config());
+        let mut timer = Timer::new(&test_config()?);
         timer.start();
         timer.tick(); // elapsed = 1
         timer.pause();
