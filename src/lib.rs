@@ -212,7 +212,7 @@ impl WidgetPlugin for PomodoroWidget {
         let should_pulse =
             self.pulse_on_pause && !self.timer.is_running() && !self.timer.at_phase_boundary();
 
-        tracing::debug!(
+        tracing::trace!(
             pulse_on_pause = self.pulse_on_pause,
             is_running = self.timer.is_running(),
             at_phase_boundary = self.timer.at_phase_boundary(),
