@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.14.4 - 2026-03-14
+#### Bug Fixes
+- reduce poll_state debug logging to trace level - (65effdf) - Neale Swinnerton
+
+- - -
+
 ## v0.14.3 - 2026-02-25
 #### Refactoring
 - consolidate deps through verandah-plugin v1.3.0 facade - (5057e1e) - Neale Swinnerton
