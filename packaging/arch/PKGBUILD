@@ -10,7 +10,7 @@ license=('MIT')
 depends=('alsa-lib' 'fontconfig')
 optdepends=('pipewire-alsa: for audio playback via pipewire')
 makedepends=('rust' 'clang' 'pkg-config')
-source=("${pkgname}::git+ssh://git.sw1nn.net/sw1nn/verandah-plugin-pomodoro?tag=v${pkgver}")
+source=("${pkgname}::git+https://git.sw1nn.net/sw1nn/verandah-plugin-pomodoro?tag=v${pkgver}")
 sha256sums=('SKIP')
 
 prepare() {
