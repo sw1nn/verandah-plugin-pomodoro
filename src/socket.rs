@@ -58,17 +58,17 @@ impl Command {
 
 /// Get the socket path using XDG runtime directory
 pub fn get_socket_path() -> Option<PathBuf> {
-    let xdg = BaseDirectories::with_prefix(SOCKET_DIR).ok()?;
+    let xdg = BaseDirectories::with_prefix(SOCKET_DIR);
     xdg.place_runtime_file(SOCKET_NAME).ok()
 }
 
 /// Find existing socket for the control client
 pub fn find_socket() -> Option<PathBuf> {
-    let xdg = BaseDirectories::with_prefix(SOCKET_DIR).ok()?;
+    let xdg = BaseDirectories::with_prefix(SOCKET_DIR);
 
     xdg.list_runtime_files(".")
         .into_iter()
-        .find(|path| path.file_name().map(|n| n == SOCKET_NAME).unwrap_or(false))
+        .find(|path: &PathBuf| path.file_name().map(|n| n == SOCKET_NAME).unwrap_or(false))
 }
 
 /// Send a command to a running pomodoro instance

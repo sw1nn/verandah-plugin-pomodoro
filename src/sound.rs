@@ -5,7 +5,7 @@ use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::thread;
 
-use rodio::{Decoder, OutputStream, Sink};
+use rodio::DeviceSinkBuilder;
 use xdg::BaseDirectories;
 
 const SOUND_EXTENSIONS: &[&str] = &["oga", "ogg", "wav", "mp3"];
@@ -30,12 +30,10 @@ where
 
 /// Play an audio file synchronously
 fn play_audio_file(path: &Path) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let (_stream, stream_handle) = OutputStream::try_default()?;
-    let file = File::open(path)?;
-    let source = Decoder::new(BufReader::new(file))?;
-    let sink = Sink::try_new(&stream_handle)?;
-    sink.append(source);
-    sink.sleep_until_end();
+    let handle = DeviceSinkBuilder::open_default_sink()?;
+    let file = BufReader::new(File::open(path)?);
+    let player = rodio::play(handle.mixer(), file)?;
+    player.sleep_until_end();
     Ok(())
 }
 
@@ -70,7 +68,7 @@ where
 
 /// Search for a sound in XDG data directories
 fn resolve_sound_in_xdg(name: &str) -> Option<PathBuf> {
-    let xdg = BaseDirectories::new().ok()?;
+    let xdg = BaseDirectories::new();
 
     // Search in sounds subdirectory of data dirs
     for data_dir in xdg.get_data_dirs() {
@@ -81,9 +79,11 @@ fn resolve_sound_in_xdg(name: &str) -> Option<PathBuf> {
     }
 
     // Also check user data home
-    let sounds_dir = xdg.get_data_home().join("sounds");
-    if let Some(path) = find_sound_in_dir(&sounds_dir, name) {
-        return Some(path);
+    if let Some(data_home) = xdg.get_data_home() {
+        let sounds_dir = data_home.join("sounds");
+        if let Some(path) = find_sound_in_dir(&sounds_dir, name) {
+            return Some(path);
+        }
     }
 
     None

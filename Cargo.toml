@@ -18,12 +18,13 @@ abi_stable = "0.11"
 serde = { version = "1", features = ["derive"] }
 tracing = "0.1"
 derive_more = { version = "2", features = ["from", "display", "debug"] }
-strum = { version = "0.27", features = ["derive"] }
-xdg = "2"
+strum = { version = "0.28", features = ["derive"] }
+xdg = "3"
 clap = { version = "4", features = ["derive"] }
 
 # Audio
-rodio = { version = "0.19", default-features = false, features = [
+rodio = { version = "0.22", default-features = false, features = [
+  "playback",
   "mp3",
   "wav",
   "vorbis",
