@@ -2,6 +2,16 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.14.5 - 2026-05-11
+#### Bug Fixes
+- (**deps**) adapt to xdg 3 and rodio 0.22 breaking changes - (3ae9544) - Neale Swinnerton
+- (**packaging**) use git+https:// instead of git+ssh:// in PKGBUILD - (c735cb3) - Neale Swinnerton
+#### Miscellaneous Chores
+- (**packaging**) remove sudo from makepkg hook - (02081e2) - Neale Swinnerton
+- add Justfile with release recipe - (fb0117a) - Neale Swinnerton
+
+- - -
+
 ## v0.14.4 - 2026-03-14
 #### Bug Fixes
 - reduce poll_state debug logging to trace level - (65effdf) - Neale Swinnerton
