@@ -2,6 +2,16 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.15.0 - 2026-07-06
+#### Features
+- <span style="background-color: #d73a49; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold; font-size: 0.85em;">BREAKING</span>adopt verandah-plugin v2 action hook with timer verbs - (648623e) - Neale Swinnerton
+#### Documentation
+- prefer plugin action verbs for button control - (7f3469f) - Neale Swinnerton
+#### Miscellaneous Chores
+- (**deps**) bump versions to latest major.minor - (1c21986) - Neale Swinnerton
+
+- - -
+
 ## v0.14.5 - 2026-05-11
 #### Bug Fixes
 - (**deps**) adapt to xdg 3 and rodio 0.22 breaking changes - (3ae9544) - Neale Swinnerton
