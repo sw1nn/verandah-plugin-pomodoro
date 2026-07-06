@@ -10,14 +10,12 @@
 #   ┌─────┬─────┬─────┬─────┬─────┐
 #   │  0  │  1  │TIMER│  3  │clock│
 #   ├─────┼─────┼─────┼─────┼─────┤
-#   │reset│  6  │skip │  8  │  9  │
+#   │  5  │  6  │  7  │  8  │  9  │
 #   ├─────┼─────┼─────┼─────┼─────┤
 #   │ 10  │ 11  │ 12  │ 13  │ 14  │
 #   └─────┴─────┴─────┴─────┴─────┘
 #
-# Press the timer button (2) to toggle start/stop
-# Press reset (5) to reset timer
-# Press skip (7) to skip to next phase
+# Press the timer button (2) to toggle; long-press to reset; double-press to skip
 
 shape = [3, 5]
 
@@ -44,7 +42,13 @@ shape = [3, 5]
 # phases = { work = "work", short_break = "short brk", long_break = "long brk" }
 # labels = { work = "Work", short_break = "Short\nBreak", long_break = "Long\nBreak", paused = "\uf04c" }
 # [keys.action]
-# exec = "verandah-pomodoroctl toggle"
+# plugin = "toggle" # optional: a bare press fires the default verb anyway
+#
+# [keys.long_press_action]
+# plugin = "reset"
+#
+# [keys.double_press_action]
+# plugin = "skip"
 
 # Variant 2: Without icons
 # When paused at phase boundary, displays text fallback for current phase
@@ -61,7 +65,13 @@ shape = [3, 5]
 # phases = { work = "W", short_break = "SB", long_break = "LB" }
 # labels = { work = "WORK", short_break = "BREAK", long_break = "LONG\nBREAK", paused = "||" }
 # [keys.action]
-# exec = "verandah-pomodoroctl toggle"
+# plugin = "toggle" # optional: a bare press fires the default verb anyway
+#
+# [keys.long_press_action]
+# plugin = "reset"
+#
+# [keys.double_press_action]
+# plugin = "skip"
 
 # Variant 3: Filling-bucket mode
 # Displays progress as a fill from bottom to top (or top to bottom)
@@ -84,7 +94,13 @@ colors = { fg = "#ecf0f1", work_bg = "#e57373", break_bg = "#81c784", paused_bg 
 sounds = { work = "alarm-clock-elapsed", short_break = "complete", long_break = "complete" }
 phases = { work = "work", short_break = "short brk", long_break = "long brk" }
 [keys.action]
-exec = "verandah-pomodoroctl toggle"
+plugin = "toggle" # optional: a bare press fires the default verb anyway
+
+[keys.long_press_action]
+plugin = "reset"
+
+[keys.double_press_action]
+plugin = "skip"
 
 # Variant 4: Fill-icon mode
 # Fills the phase icon from bottom to top as progress indicator
@@ -105,7 +121,13 @@ exec = "verandah-pomodoroctl toggle"
 # colors = { fg = "#ecf0f1", paused_bg = "#34495e" }
 # sounds = { work = "alarm-clock-elapsed", short_break = "complete", long_break = "complete" }
 # [keys.action]
-# exec = "verandah-pomodoroctl toggle"
+# plugin = "toggle" # optional: a bare press fires the default verb anyway
+#
+# [keys.long_press_action]
+# plugin = "reset"
+#
+# [keys.double_press_action]
+# plugin = "skip"
 
 # Variant 5: Ripen mode
 # Icon starts green (unripe) and gradually returns to original colors as timer progresses
@@ -126,33 +148,27 @@ exec = "verandah-pomodoroctl toggle"
 # sounds = { work = "alarm-clock-elapsed", short_break = "complete", long_break = "complete" }
 # labels = { paused = "\uf04c" }
 # [keys.action]
-# exec = "verandah-pomodoroctl toggle"
+# plugin = "toggle" # optional: a bare press fires the default verb anyway
+#
+# [keys.long_press_action]
+# plugin = "reset"
+#
+# [keys.double_press_action]
+# plugin = "skip"
 
-# Reset button
-[[keys]]
-index = 5
-[keys.widget]
-id = "clock"
-[keys.widget.config]
-format = "Reset"
-interval = 60000
-fg_color = "#ffffff"
-bg_color = "#e74c3c" # Alizarin red
-[keys.action]
-exec = "verandah-pomodoroctl reset"
-
-# Skip button
-[[keys]]
-index = 7
-[keys.widget]
-id = "clock"
-[keys.widget.config]
-format = "Skip"
-interval = 60000
-fg_color = "#ffffff"
-bg_color = "#3498db" # Peter river blue
-[keys.action]
-exec = "verandah-pomodoroctl skip"
+# Legacy external control: dedicated buttons can still drive the timer via
+# the verandah-pomodoroctl socket client (useful from scripts/keybindings too)
+# [[keys]]
+# index = 5
+# [keys.widget]
+# id = "clock"
+# [keys.widget.config]
+# format = "Reset"
+# interval = 60000
+# fg_color = "#ffffff"
+# bg_color = "#e74c3c"
+# [keys.action]
+# exec = "verandah-pomodoroctl reset"
 
 # Clock for reference
 [[keys]]

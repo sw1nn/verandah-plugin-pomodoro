@@ -7,7 +7,7 @@ A pomodoro timer widget plugin for [verandah](https://git.sw1nn.net/sw1nn/verand
 - Configurable work/break durations
 - Multiple render modes for visual feedback
 - Sound notifications on phase transitions
-- External control via socket (`verandah-pomodoroctl`)
+- Button actions via plugin verbs; external control via socket (`verandah-pomodoroctl`)
 
 ## Configuration
 
@@ -25,7 +25,13 @@ render_mode = "ripen"
 colors = { fg = "#ecf0f1", paused_bg = "#34495e" }
 sounds = { work = "alarm-clock-elapsed", break = "complete" }
 [keys.action]
-exec = "verandah-pomodoroctl toggle"
+plugin = "toggle"
+
+[keys.long_press_action]
+plugin = "reset"
+
+[keys.double_press_action]
+plugin = "skip"
 ```
 
 ### Timer Settings
@@ -103,7 +109,25 @@ Sound names are resolved via XDG sound theme directories. The `work` sound plays
 
 ## Control
 
-Use `verandah-pomodoroctl` to control the timer:
+Buttons control the timer through plugin actions — a bare press on the
+timer button fires the default `toggle` verb, and gestures can be bound
+explicitly:
+
+```toml
+[keys.action]
+plugin = "toggle"
+
+[keys.long_press_action]
+plugin = "reset"
+
+[keys.double_press_action]
+plugin = "skip"
+```
+
+Available verbs: `toggle` (default), `start`, `stop`, `reset`, `skip`.
+
+For external control (scripts, window-manager keybindings), use
+`verandah-pomodoroctl`:
 
 ```bash
 verandah-pomodoroctl toggle  # Start/stop the timer
