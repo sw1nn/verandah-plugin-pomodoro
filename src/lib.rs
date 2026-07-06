@@ -302,6 +302,29 @@ impl WidgetPlugin for PomodoroWidget {
             listener.shutdown();
         }
     }
+
+    fn supported_actions(&self) -> RVec<PluginActionSpec> {
+        vec![
+            PluginActionSpec::new("toggle", "Toggle the timer between running and paused")
+                .with_default(),
+            PluginActionSpec::new("start", "Start the timer"),
+            PluginActionSpec::new("stop", "Stop/pause the timer"),
+            PluginActionSpec::new("reset", "Reset the timer to the beginning"),
+            PluginActionSpec::new("skip", "Skip to the next phase"),
+        ]
+        .into()
+    }
+
+    fn handle_action(&mut self, verb: RStr<'_>) -> PluginResult<()> {
+        match Command::parse(verb.as_str()) {
+            Some(cmd) => {
+                tracing::info!(verb = verb.as_str(), "Applying plugin action");
+                cmd.apply(&mut self.timer);
+                PluginResult::ROk(())
+            }
+            None => PluginResult::RErr(PluginError::new(format!("Unsupported action: {verb}"))),
+        }
+    }
 }
 
 #[sabi_extern_fn]
@@ -317,4 +340,43 @@ fn get_library() -> PluginModRef {
         set_logger: set_logger_impl,
     }
     .leak_into_prefix()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn supported_actions_declares_five_verbs_with_toggle_default() -> error::Result<()> {
+        let widget = PomodoroWidget::new();
+        let actions = widget.supported_actions();
+        let names: Vec<&str> = actions.iter().map(|a| a.name.as_str()).collect();
+        assert_eq!(names, vec!["toggle", "start", "stop", "reset", "skip"]);
+        let defaults: Vec<&str> = actions
+            .iter()
+            .filter(|a| a.is_default)
+            .map(|a| a.name.as_str())
+            .collect();
+        assert_eq!(defaults, vec!["toggle"]);
+        Ok(())
+    }
+
+    #[test]
+    fn handle_action_toggle_flips_timer_running() -> error::Result<()> {
+        let mut widget = PomodoroWidget::new();
+        assert!(!widget.timer.is_running());
+        assert!(widget.handle_action("toggle".into()).is_ok());
+        assert!(widget.timer.is_running());
+        assert!(widget.handle_action("toggle".into()).is_ok());
+        assert!(!widget.timer.is_running());
+        Ok(())
+    }
+
+    #[test]
+    fn handle_action_unknown_verb_errors() -> error::Result<()> {
+        let mut widget = PomodoroWidget::new();
+        let result = widget.handle_action("bogus".into());
+        assert!(result.is_err());
+        Ok(())
+    }
 }
