@@ -12,7 +12,7 @@ license=('MIT')
 # that libfontconfig then dereferences, so a font is a hard runtime dependency.
 depends=('alsa-lib' 'fontconfig' 'ttf-dejavu')
 optdepends=('pipewire-alsa: for audio playback via pipewire')
-makedepends=('rust' 'clang' 'pkg-config')
+makedepends=('git' 'rust' 'clang' 'pkg-config')
 source=("${pkgname}::git+https://git.sw1nn.net/sw1nn/verandah-plugin-pomodoro?tag=v${pkgver}")
 sha256sums=('SKIP')
 
