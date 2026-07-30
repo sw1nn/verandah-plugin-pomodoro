@@ -2,6 +2,15 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.15.1 - 2026-07-30
+#### Bug Fixes
+- (**dev**) stop hardcoding another user's home in the dev environment - (6ae53a8) - Neale Swinnerton
+- (**packaging**) depend on ttf-dejavu for text rendering - (1f5b32b) - Neale Swinnerton
+#### Build system
+- (**deps**) rebuild against verandah-plugin v2.1.0 - (e31b7dc) - Neale Swinnerton
+
+- - -
+
 ## v0.15.0 - 2026-07-06
 #### Features
 - <span style="background-color: #d73a49; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold; font-size: 0.85em;">BREAKING</span>adopt verandah-plugin v2 action hook with timer verbs - (648623e) - Neale Swinnerton

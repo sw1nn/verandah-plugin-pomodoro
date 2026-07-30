@@ -2457,7 +2457,7 @@ dependencies = [
 
 [[package]]
 name = "verandah-plugin-pomodoro"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "abi_stable",
  "clap",
