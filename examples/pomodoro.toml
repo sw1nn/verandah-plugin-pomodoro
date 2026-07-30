@@ -2,7 +2,7 @@
 #
 # Usage:
 #   1. Build the plugin: cargo build
-#   2. Set plugin path: export VERANDAH_PLUGIN_PATH=/home/swn/.cache/cargo/sw1nn/cargo_target/debug
+#   2. Set plugin path: export VERANDAH_PLUGIN_PATH="${CARGO_TARGET_DIR:-$HOME/.cache/cargo/sw1nn/cargo_target}/debug"
 #   3. Start daemon: streamdeckd --config examples/pomodoro.toml --watch-config -vv
 #
 # Button layout (3x5 Stream Deck):
