@@ -18,10 +18,12 @@ pre_bump_hooks = [
   "git add Cargo.toml Cargo.lock packaging/arch/PKGBUILD",
 ]
 
-# Post-bump hooks run after the version commit and tag are created
+# Post-bump hooks run after the version commit and tag are created.
+# Packaging (build, upload) is handled by the `package` recipe in the Justfile,
+# invoked from `release` after the bump completes. Keeping it out of here means
+# a packaging failure leaves the tag intact and is retryable with a bare
+# `just package`, without re-bumping the version.
 post_bump_hooks = [
   "git push",
   "git push origin v{{version}}",
-  "sw1nn-makepkg-chroot -C packaging/arch",
-  "sw1nn-pkg-ctl upload packaging/arch/*-{{version}}-*.pkg.tar.zst",
 ]
