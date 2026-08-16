@@ -1,6 +1,6 @@
 # verandah-plugin-pomodoro
 
-A pomodoro timer widget plugin for [verandah](https://git.sw1nn.net/sw1nn/verandah).
+A pomodoro timer widget plugin for [verandah](https://code.sw1nn.net/sw1nn/verandah).
 
 ## Features
 
@@ -36,11 +36,11 @@ plugin = "skip"
 
 ### Timer Settings
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `work` | 25 | Work phase duration in minutes |
-| `short_break` | 5 | Short break duration in minutes |
-| `long_break` | 15 | Long break duration in minutes |
+| Option        | Default | Description                     |
+| ------------- | ------- | ------------------------------- |
+| `work`        | 25      | Work phase duration in minutes  |
+| `short_break` | 5       | Short break duration in minutes |
+| `long_break`  | 15      | Long break duration in minutes  |
 
 ### Render Modes
 
@@ -55,6 +55,7 @@ Traditional text-based display showing the countdown timer with phase indicator 
 Displays progress as a fill from bottom to top (or top to bottom). The background fills with the phase color as time progresses.
 
 Options:
+
 - `fill_direction`: `"empty_to_full"` (default) or `"full_to_empty"`
 - `empty_bg`: Background color for unfilled portion
 
@@ -63,6 +64,7 @@ Options:
 Fills the phase icon from bottom to top as a progress indicator. The unfilled portion is shown in greyscale, creating a visual effect where the icon progressively colorizes as time passes.
 
 Options:
+
 - `fill_direction`: `"empty_to_full"` (default) or `"full_to_empty"`
 
 Requires icons to be configured. Falls back to `fill_bg` if no icon is available.
@@ -91,13 +93,13 @@ Applies to `fill_icon` and `ripen` render modes only. Default: `false`.
 colors = { fg = "#ecf0f1", work_bg = "#e57373", break_bg = "#81c784", paused_bg = "#34495e", empty_bg = "#2c3e50" }
 ```
 
-| Color | Default | Description |
-|-------|---------|-------------|
-| `fg` | `#ffffff` | Foreground/text color |
-| `work_bg` | `#e57373` | Background during work phase |
-| `break_bg` | `#81c784` | Background during break phase |
-| `paused_bg` | `#7f8c8d` | Background when paused |
-| `empty_bg` | `#2c3e50` | Unfilled background in filling modes |
+| Color       | Default   | Description                          |
+| ----------- | --------- | ------------------------------------ |
+| `fg`        | `#ffffff` | Foreground/text color                |
+| `work_bg`   | `#e57373` | Background during work phase         |
+| `break_bg`  | `#81c784` | Background during break phase        |
+| `paused_bg` | `#7f8c8d` | Background when paused               |
+| `empty_bg`  | `#2c3e50` | Unfilled background in filling modes |
 
 ### Sounds
 
