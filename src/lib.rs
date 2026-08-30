@@ -143,9 +143,14 @@ impl WidgetPlugin for PomodoroWidget {
         // Resolve sound paths
         self.sounds.clear();
         for (key, sound_name) in &cfg.sounds {
-            if let Some(path) = sound::resolve_sound(sound_name) {
-                tracing::info!(key, path = %path.display(), "Sound configured");
-                self.sounds.insert(key.clone(), path);
+            match sound::resolve_sound(sound_name) {
+                Some(path) => {
+                    tracing::info!(key, path = %path.display(), "Sound configured");
+                    self.sounds.insert(key.clone(), path);
+                }
+                None => {
+                    tracing::warn!(key, sound = %sound_name, "Configured sound not found");
+                }
             }
         }
 
@@ -178,20 +183,18 @@ impl WidgetPlugin for PomodoroWidget {
             if elapsed_secs >= 1 {
                 self.last_tick = Some(now);
 
-                for _ in 0..elapsed_secs {
-                    let transition = self.timer.tick();
-
-                    // Play sound on phase transition
-                    // Sound indicates the phase that is STARTING, not the one that ended
-                    if transition != Transition::None {
-                        let sound_key = match self.timer.phase() {
-                            Phase::Work => "work",
-                            Phase::ShortBreak => "short_break",
-                            Phase::LongBreak => "long_break",
-                        };
-                        if let Some(path) = self.sounds.get(sound_key) {
-                            sound::play_sound(path);
-                        }
+                // Play at most one sound per poll, for the phase that is now
+                // current. Catching up after a suspend can cross many phase
+                // boundaries in one poll; a sound (and its playback thread)
+                // per stale transition would burst all at once.
+                if catch_up_timer(&mut self.timer, elapsed_secs) {
+                    let sound_key = match self.timer.phase() {
+                        Phase::Work => "work",
+                        Phase::ShortBreak => "short_break",
+                        Phase::LongBreak => "long_break",
+                    };
+                    if let Some(path) = self.sounds.get(sound_key) {
+                        sound::play_sound(path);
                     }
                 }
             }
@@ -327,6 +330,18 @@ impl WidgetPlugin for PomodoroWidget {
     }
 }
 
+/// Advance the timer by `elapsed_secs` one-second ticks, reporting whether
+/// any phase transition occurred along the way.
+fn catch_up_timer(timer: &mut Timer, elapsed_secs: u64) -> bool {
+    let mut transitioned = false;
+    for _ in 0..elapsed_secs {
+        if timer.tick() != Transition::None {
+            transitioned = true;
+        }
+    }
+    transitioned
+}
+
 #[sabi_extern_fn]
 fn new_widget() -> WidgetPlugin_TO<'static, RBox<()>> {
     WidgetPlugin_TO::from_value(PomodoroWidget::new(), abi_stable::sabi_trait::TD_Opaque)
@@ -377,6 +392,30 @@ mod tests {
         let mut widget = PomodoroWidget::new();
         let result = widget.handle_action("bogus".into());
         assert!(result.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn catch_up_reports_one_transition_flag_across_many_boundaries() -> error::Result<()> {
+        use config::ConfigBuilder;
+        let toml_str = r#"
+work = 1
+short_break = 1
+long_break = 1
+auto_start_work = true
+auto_start_break = true
+"#;
+        let cfg = verandah_plugin::api::toml::from_str::<ConfigBuilder>(toml_str)?.build();
+        let mut timer = Timer::new(&cfg);
+        timer.start();
+
+        // A long suspend: 480 seconds crosses a full 8-phase cycle, but the
+        // caller gets a single flag, so only one sound plays per poll.
+        assert!(catch_up_timer(&mut timer, 480));
+        assert_eq!(timer.sessions_completed(), 1);
+
+        // No boundary crossed: no sound.
+        assert!(!catch_up_timer(&mut timer, 5));
         Ok(())
     }
 }
