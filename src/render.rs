@@ -1,10 +1,49 @@
 use std::collections::HashMap;
+use std::hash::{DefaultHasher, Hash, Hasher};
+use std::sync::OnceLock;
 
+use parking_lot::Mutex;
 use strum::{AsRefStr, EnumString, VariantNames};
 use verandah_plugin::api::prelude::*;
 use verandah_plugin::utils::prelude::*;
 
 use crate::timer::{Phase, Timer};
+
+/// Process-lifetime cache of icons already scaled to the button size.
+///
+/// The phase icon is constant between config changes, but render runs every
+/// second while the timer counts down and every 100ms during the pause
+/// pulse; without this the same source pixels are converted and rescaled
+/// per frame. Keyed on the source content, so a changed icon after a
+/// reload can never serve a stale entry.
+fn scaled_icon_cache() -> &'static Mutex<HashMap<u64, RgbImage>> {
+    static CACHE: OnceLock<Mutex<HashMap<u64, RgbImage>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Cap larger than any realistic set of (phase icon × button size) pairs.
+const SCALED_ICON_CACHE_CAP: usize = 32;
+
+fn cached_scaled_icon(icon: &PluginImage, width: u32, height: u32) -> RgbImage {
+    let mut hasher = DefaultHasher::new();
+    (width, height, icon.width, icon.height).hash(&mut hasher);
+    icon.data.as_slice().hash(&mut hasher);
+    let key = hasher.finish();
+
+    if let Some(hit) = scaled_icon_cache().lock().get(&key) {
+        return hit.clone();
+    }
+
+    let src_img = bytes_to_rgb(icon.width, icon.height, &icon.data);
+    let scaled = scale_image(&src_img, width, height);
+
+    let mut cache = scaled_icon_cache().lock();
+    if cache.len() >= SCALED_ICON_CACHE_CAP {
+        cache.clear();
+    }
+    cache.insert(key, scaled.clone());
+    scaled
+}
 
 /// Render mode for the timer display
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, EnumString, AsRefStr, VariantNames)]
@@ -506,10 +545,10 @@ fn render_paused_text(
     rgba_to_rgb(&rgba)
 }
 
-/// Render an icon image, scaling to fit the button
+/// Render an icon image, scaling to fit the button (served from the
+/// scaled-icon cache after the first render at a given size).
 fn render_icon(icon: &PluginImage, width: u32, height: u32) -> RgbImage {
-    let src_img = bytes_to_rgb(icon.width, icon.height, &icon.data);
-    scale_image(&src_img, width, height)
+    cached_scaled_icon(icon, width, height)
 }
 
 /// Render an icon image with iteration dots overlay (used when paused at phase boundary)
@@ -734,4 +773,28 @@ fn shift_hue_towards_green(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u8) {
         ((g1 + m) * 255.0 + 0.5) as u8,
         ((b1 + m) * 255.0 + 0.5) as u8,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cached_scaled_icon_hits_by_content_and_misses_on_change() -> crate::error::Result<()> {
+        let red = PluginImage::from_rgb(4, 4, vec![200u8; 4 * 4 * 3]);
+        let first = cached_scaled_icon(&red, 8, 8);
+        let second = cached_scaled_icon(&red, 8, 8);
+        assert_eq!(first.as_raw(), second.as_raw());
+
+        // Same dimensions but different pixels must not serve the old entry:
+        // an icon edited before a reload would otherwise render stale.
+        let dark = PluginImage::from_rgb(4, 4, vec![10u8; 4 * 4 * 3]);
+        let scaled_dark = cached_scaled_icon(&dark, 8, 8);
+        assert_ne!(first.as_raw(), scaled_dark.as_raw());
+
+        // A different target size is a distinct entry, not a collision.
+        let resized = cached_scaled_icon(&red, 6, 6);
+        assert_eq!(resized.dimensions(), (6, 6));
+        Ok(())
+    }
 }
