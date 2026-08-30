@@ -1,0 +1,7 @@
+# parking_lot locks are the standard here, as in verandah itself: no
+# poisoning, so call sites need no .expect("poisoned") / Result handling.
+disallowed-types = [
+    { path = "std::sync::Mutex", reason = "use parking_lot::Mutex" },
+    { path = "std::sync::RwLock", reason = "use parking_lot::RwLock" },
+    { path = "std::sync::Condvar", reason = "use parking_lot::Condvar" },
+]
