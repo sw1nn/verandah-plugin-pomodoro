@@ -2,6 +2,27 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.15.2 - 2026-10-16
+#### Features
+- (**release**) assert releases run from main - (7db0afa) - Neale Swinnerton
+#### Bug Fixes
+- (**direnv**) chain up to the workspace .envrc - (343cf01) - Neale Swinnerton
+- (**packaging**) point PKGBUILD at code.sw1nn.net - (33c784e) - Neale Swinnerton
+- (**packaging**) add git to makedepends - (cedaf99) - Neale Swinnerton
+- (**socket**) bound the command queue and cap client reads - (8a23156) - Neale Swinnerton
+- (**sound**) one sound per poll and a warning for unresolved sounds - (c0babce) - Neale Swinnerton
+#### Performance Improvements
+- (**render**) cache scaled phase icons - (2c68c71) - Neale Swinnerton
+#### Build system
+- (**deps**) depend on verandah-plugin v2.2.0 - (139be4d) - Neale Swinnerton
+#### Refactoring
+- (**release**) move packaging into just package recipe - (fb7c7e6) - Neale Swinnerton
+#### Miscellaneous Chores
+- (**lint**) disallow std::sync locks via clippy.toml - (382a5b6) - Neale Swinnerton
+- add .gitattributes - (9dc5686) - Neale Swinnerton
+
+- - -
+
 ## v0.15.1 - 2026-07-30
 #### Bug Fixes
 - (**dev**) stop hardcoding another user's home in the dev environment - (6ae53a8) - Neale Swinnerton
